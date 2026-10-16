@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Cloud, LoaderCircle, LogOut, Trash2 } from 'lucide-react'
+import { BarChart3, Cloud, LayoutDashboard, LoaderCircle, LogOut, Trash2 } from 'lucide-react'
 import { CategoryChart } from './components/CategoryChart'
 import { CategoryRules } from './components/CategoryRules'
 import { FileUpload } from './components/FileUpload'
+import { HistoryView } from './components/HistoryView'
 import { Installments } from './components/Installments'
 import { Login } from './components/Login'
 import { SpendingChart } from './components/SpendingChart'
@@ -30,11 +31,12 @@ import { parseNubankCsv } from './services/csvParser'
 import {
   deleteInvoice,
   listInvoices,
+  loadAllInvoices,
   loadInvoice,
   saveInvoice,
   updateTransactionsCategory,
 } from './services/firestoreService'
-import type { InvoiceSummary } from './types/Invoice'
+import type { InvoiceSummary, SavedInvoice } from './types/Invoice'
 import type { Transaction, TransactionCategory } from './types/Transaction'
 import { formatDueDate, formatMonthLabel } from './utils/invoiceReference'
 import './App.css'
@@ -64,6 +66,9 @@ function App() {
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
+  const [view, setView] = useState<'invoice' | 'history'>('invoice')
+  const [history, setHistory] = useState<SavedInvoice[] | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
 
   const ruleMap = useMemo(() => rulesToMap(rules), [rules])
   const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId)
@@ -88,6 +93,33 @@ function App() {
       }),
     [transactions, search, categoryFilter, typeFilter],
   )
+
+  // Qualquer alteração em faturas ou categorias invalida o histórico carregado.
+  useEffect(() => {
+    setHistory(null)
+  }, [invoices, transactions])
+
+  useEffect(() => {
+    if (!user || view !== 'history' || history !== null) return
+
+    let cancelled = false
+    setHistoryLoading(true)
+
+    loadAllInvoices(user.uid)
+      .then((data) => {
+        if (!cancelled) setHistory(data)
+      })
+      .catch((cause) => {
+        if (!cancelled) setError(getFirestoreErrorMessage(cause))
+      })
+      .finally(() => {
+        if (!cancelled) setHistoryLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [user, view, history])
 
   const resetFilters = () => {
     setSearch('')
@@ -468,14 +500,48 @@ function App() {
           </div>
         )}
 
-        <FileUpload
-          fileName={fileName}
-          loading={loading}
-          error={error}
-          onFile={handleFile}
-        />
+        <nav className="view-tabs">
+          <button
+            type="button"
+            className={view === 'invoice' ? 'active' : ''}
+            onClick={() => setView('invoice')}
+          >
+            <LayoutDashboard size={16} /> Fatura
+          </button>
+          <button
+            type="button"
+            className={view === 'history' ? 'active' : ''}
+            onClick={() => setView('history')}
+          >
+            <BarChart3 size={16} /> Histórico
+          </button>
+        </nav>
 
-        {transactions.length > 0 && (
+        {view === 'history' && error && history === null && (
+          <div className="inline-error history-error">{error}</div>
+        )}
+
+        {view === 'history' && !(error && history === null) && (
+          historyLoading || history === null ? (
+            <div className="cloud-message">
+              <LoaderCircle className="spin" size={16} />
+              <span>Carregando o histórico das faturas...</span>
+            </div>
+          ) : (
+            <HistoryView invoices={history} />
+          )
+        )}
+
+        {view === 'invoice' && (
+          <FileUpload
+            fileName={fileName}
+            loading={loading}
+            error={error}
+            onFile={handleFile}
+          />
+        )}
+
+        {view === 'invoice' && transactions.length > 0 && (
           <>
             <SummaryCards transactions={transactions} />
             <UncategorizedPanel
@@ -511,7 +577,7 @@ function App() {
           </>
         )}
 
-        {!transactions.length && !loading && !cloudLoading && (
+        {view === 'invoice' && !transactions.length && !loading && !cloudLoading && (
           <section className="welcome-state">
             <div className="welcome-number">01</div>
             <div>

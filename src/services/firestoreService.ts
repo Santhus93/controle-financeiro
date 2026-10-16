@@ -277,3 +277,10 @@ export async function updateTransactionsCategory(
 
   await commitInChunks(operations)
 }
+
+/** Carrega todas as faturas com os lançamentos, da mais antiga para a mais recente. */
+export async function loadAllInvoices(uid: string): Promise<SavedInvoice[]> {
+  const summaries = await listInvoices(uid)
+  const invoices = await Promise.all(summaries.map((summary) => loadInvoice(uid, summary.id)))
+  return invoices.sort((a, b) => a.referenceMonth.localeCompare(b.referenceMonth))
+}
