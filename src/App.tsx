@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BarChart3, Cloud, LayoutDashboard, LoaderCircle, LogOut, Trash2 } from 'lucide-react'
+import { BudgetPanel } from './components/BudgetPanel'
 import { CategoryChart } from './components/CategoryChart'
 import { CategoryRules } from './components/CategoryRules'
 import { FileUpload } from './components/FileUpload'
@@ -12,6 +13,7 @@ import { TopMerchants } from './components/TopMerchants'
 import { TransactionsTable } from './components/TransactionsTable'
 import { UncategorizedPanel } from './components/UncategorizedPanel'
 import { useAuth } from './contexts/AuthContext'
+import { EMPTY_BUDGET, loadBudget, saveBudget, type Budget } from './services/budgetService'
 import {
   clearLegacyLocalRules,
   detectCategory,
@@ -70,6 +72,8 @@ function App() {
   const [view, setView] = useState<'invoice' | 'history'>('invoice')
   const [history, setHistory] = useState<SavedInvoice[] | null>(null)
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [budget, setBudget] = useState<Budget>(EMPTY_BUDGET)
+  const [savingBudget, setSavingBudget] = useState(false)
 
   const ruleMap = useMemo(() => rulesToMap(rules), [rules])
   const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId)
@@ -143,6 +147,7 @@ function App() {
     if (!user) {
       setInvoices([])
       setRules([])
+      setBudget(EMPTY_BUDGET)
       setTransactions([])
       setSelectedInvoiceId('')
       setFileName('')
@@ -154,7 +159,7 @@ function App() {
     const loadInitialData = async () => {
       setCloudLoading(true)
       setError('')
-      setCloudMessage('Carregando suas faturas e regras...')
+      setCloudMessage('Carregando suas faturas, regras e orçamento...')
 
       try {
         let foundRules = await listCategoryRules(user.uid)
@@ -169,6 +174,10 @@ function App() {
 
         if (cancelled) return
         setRules(foundRules)
+
+        const foundBudget = await loadBudget(user.uid)
+        if (cancelled) return
+        setBudget(foundBudget)
 
         const foundInvoices = await listInvoices(user.uid)
         if (cancelled) return
@@ -366,6 +375,23 @@ function App() {
     }
   }
 
+  const handleSaveBudget = async (next: Budget) => {
+    if (!user) return
+
+    setSavingBudget(true)
+    setError('')
+
+    try {
+      const saved = await saveBudget(user.uid, next)
+      setBudget(saved)
+      setCloudMessage('Orçamento salvo na sua conta.')
+    } catch (cause) {
+      setError(getFirestoreErrorMessage(cause))
+    } finally {
+      setSavingBudget(false)
+    }
+  }
+
   const handleCategoryChange = (id: string, category: TransactionCategory) => {
     const transaction = transactions.find((item) => item.id === id)
     if (transaction) void applyCategoryToMerchant(transaction.originalTitle, category)
@@ -462,7 +488,7 @@ function App() {
             <h1>Entenda para onde vai o dinheiro da sua fatura.</h1>
             <p>
               Importe a fatura em OFX ou CSV, salve o histórico na nuvem e acompanhe
-              despesas, estornos e parcelamentos em qualquer dispositivo.
+              despesas, orçamento e parcelamentos em qualquer dispositivo.
             </p>
           </div>
 
@@ -570,6 +596,12 @@ function App() {
         {view === 'invoice' && transactions.length > 0 && (
           <>
             <SummaryCards transactions={transactions} />
+            <BudgetPanel
+              transactions={transactions}
+              budget={budget}
+              saving={savingBudget}
+              onSave={(next) => void handleSaveBudget(next)}
+            />
             <UncategorizedPanel
               transactions={transactions}
               saving={savingRule}
