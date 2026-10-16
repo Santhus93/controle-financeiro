@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { FileCheck2, FileUp, ShieldCheck } from 'lucide-react'
+import { ACCEPTED_EXTENSIONS } from '../services/importService'
 
 interface FileUploadProps {
   fileName?: string
@@ -13,9 +14,7 @@ export function FileUpload({ fileName, loading, error, onFile }: FileUploadProps
   const [dragging, setDragging] = useState(false)
 
   const receiveFile = (file?: File) => {
-    if (!file) return
-    if (!file.name.toLowerCase().endsWith('.csv')) return
-    onFile(file)
+    if (file) onFile(file)
   }
 
   return (
@@ -40,15 +39,15 @@ export function FileUpload({ fileName, loading, error, onFile }: FileUploadProps
         <div className="upload-icon">{fileName ? <FileCheck2 /> : <FileUp />}</div>
         <div className="upload-copy">
           <h2>{fileName ? 'Fatura carregada' : 'Importe sua fatura'}</h2>
-          <p>{fileName || 'Arraste o CSV do Nubank ou selecione o arquivo no computador.'}</p>
+          <p>{fileName || 'Arraste o OFX do seu banco ou o CSV do Nubank.'}</p>
         </div>
         <button className="button-primary" type="button" disabled={loading} onClick={() => inputRef.current?.click()}>
-          {loading ? 'Lendo arquivo...' : fileName ? 'Importar outra fatura' : 'Selecionar CSV'}
+          {loading ? 'Lendo arquivo...' : fileName ? 'Importar outra fatura' : 'Selecionar arquivo'}
         </button>
         <input
           ref={inputRef}
           type="file"
-          accept=".csv,text/csv"
+          accept={[...ACCEPTED_EXTENSIONS, 'application/x-ofx', 'text/csv'].join(',')}
           hidden
           onChange={(event) => {
             receiveFile(event.target.files?.[0])
@@ -58,7 +57,7 @@ export function FileUpload({ fileName, loading, error, onFile }: FileUploadProps
       </div>
       {error && <div className="inline-error">{error}</div>}
       <div className="privacy-note">
-        <ShieldCheck size={16} /> O arquivo original é processado no navegador. Somente os lançamentos estruturados são sincronizados com a sua conta.
+        <ShieldCheck size={16} /> Formatos aceitos: OFX (qualquer banco) e CSV do Nubank. O arquivo é lido no navegador; somente os lançamentos são sincronizados com a sua conta.
       </div>
     </section>
   )

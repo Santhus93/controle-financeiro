@@ -56,6 +56,11 @@ function getReferenceMonth(transactions: Transaction[]): string {
   return validDates[validDates.length - 1].slice(0, 7)
 }
 
+/**
+ * Assinatura da fatura: data | descrição | valor de cada lançamento.
+ * Não depende do formato do arquivo, então o mesmo conteúdo em CSV e em OFX
+ * gera a mesma assinatura e não é duplicado.
+ */
 async function createInvoiceId(transactions: Transaction[]): Promise<string> {
   const canonicalTransactions = [...transactions]
     .map((item) => [item.date, normalizeForFingerprint(item.originalTitle), item.amount.toFixed(2)].join('|'))
@@ -156,6 +161,7 @@ export async function saveInvoice(
   uid: string,
   fileName: string,
   transactions: Transaction[],
+  card = 'Nubank',
 ): Promise<SaveInvoiceResult> {
   if (!transactions.length) {
     throw new Error('Não há lançamentos para salvar.')
@@ -180,7 +186,7 @@ export async function saveInvoice(
     batch.set(invoiceRef, {
       referenceMonth,
       fileName,
-      card: 'Nubank',
+      card,
       transactionCount: transactions.length,
       ...totals,
       importedAt: serverTimestamp(),
@@ -201,7 +207,7 @@ export async function saveInvoice(
       id: invoiceId,
       referenceMonth,
       fileName,
-      card: 'Nubank',
+      card,
       transactionCount: transactions.length,
       ...totals,
       importedAt: new Date(),
@@ -258,7 +264,6 @@ export async function updateTransactionCategory(
   await updateTransactionsCategory(uid, invoiceId, [transactionId], category)
 }
 
-/** Atualiza a categoria de vários lançamentos da mesma fatura de uma vez. */
 export async function updateTransactionsCategory(
   uid: string,
   invoiceId: string,

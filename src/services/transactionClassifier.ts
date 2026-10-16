@@ -21,8 +21,10 @@ export function cleanInstallmentTitle(title: string): string {
 export function classifyTransaction(title: string, amount: number): TransactionType {
   const normalized = title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
-  if (/pagamento recebido|pagamento de fatura/.test(normalized)) return 'payment'
-  if (/estorno|credito de compra|cancelamento/.test(normalized)) return 'refund'
+  if (/pagamento recebido|pagamento de fatura|pagamento efetuado|pagto fatura|pgto fatura/.test(normalized)) {
+    return 'payment'
+  }
+  if (/estorno|credito de compra|cancelamento|reembolso|devolucao/.test(normalized)) return 'refund'
   if (/pix no credito/.test(normalized)) return 'pix_credit'
   if (extractInstallment(title)) return 'installment'
   if (amount > 0) return 'purchase'

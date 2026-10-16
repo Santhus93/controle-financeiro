@@ -27,7 +27,7 @@ import {
   sortRules,
   type CategoryRule,
 } from './services/categoryRulesService'
-import { parseNubankCsv } from './services/csvParser'
+import { describeLedgerCheck, importStatement } from './services/importService'
 import {
   deleteInvoice,
   listInvoices,
@@ -185,7 +185,7 @@ function App() {
           )
           setCloudMessage('Fatura mais recente carregada da nuvem.')
         } else {
-          setCloudMessage('Nenhuma fatura salva. Importe o primeiro CSV.')
+          setCloudMessage('Nenhuma fatura salva. Importe a primeira fatura.')
         }
       } catch (cause) {
         if (!cancelled) {
@@ -212,15 +212,15 @@ function App() {
     setCloudMessage('Lendo e salvando a fatura...')
 
     try {
-      const parsed = await parseNubankCsv(file)
+      const statement = await importStatement(file)
 
       // Aplica as regras do usuário (Firestore) antes de salvar.
-      const categorized = parsed.map((item) => ({
+      const categorized = statement.transactions.map((item) => ({
         ...item,
         category: detectCategory(item.originalTitle, ruleMap),
       }))
 
-      const result = await saveInvoice(user.uid, file.name, categorized)
+      const result = await saveInvoice(user.uid, file.name, categorized, statement.card)
       const refreshedInvoices = await listInvoices(user.uid)
 
       setInvoices(refreshedInvoices)
@@ -230,9 +230,10 @@ function App() {
         result.invoice.transactions,
       )
       setCloudMessage(
-        result.alreadyExisted
-          ? 'Esta fatura já estava salva. A versão existente foi carregada.'
-          : 'Fatura e lançamentos salvos no Firestore, com as suas regras de categoria aplicadas.',
+        (result.alreadyExisted
+          ? 'Esta fatura já estava salva (mesmo que tenha sido importada em outro formato). A versão existente foi carregada.'
+          : `Fatura ${statement.card} (${statement.format.toUpperCase()}) salva com ${categorized.length} lançamentos e as suas regras de categoria aplicadas.`) +
+          describeLedgerCheck(statement),
       )
     } catch (cause) {
       setError(getFirestoreErrorMessage(cause))
@@ -264,7 +265,6 @@ function App() {
   const handleDeleteInvoice = async () => {
     if (!user || !selectedInvoiceId) return
 
-    const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId)
     const label = selectedInvoice
       ? formatReferenceMonth(selectedInvoice.referenceMonth)
       : 'esta fatura'
@@ -436,7 +436,7 @@ function App() {
             </div>
             <h1>Entenda para onde vai o dinheiro da sua fatura.</h1>
             <p>
-              Importe o CSV do Nubank, salve o histórico na nuvem e acompanhe
+              Importe a fatura em OFX ou CSV, salve o histórico na nuvem e acompanhe
               despesas, estornos e parcelamentos em qualquer dispositivo.
             </p>
           </div>
@@ -445,6 +445,7 @@ function App() {
             <span>Fatura analisada</span>
             <strong>{invoiceMonth ? formatReferenceMonth(invoiceMonth) : 'Nenhuma fatura'}</strong>
             <small>
+              {selectedInvoice?.card ? `${selectedInvoice.card} · ` : ''}
               {dueDateLabel ? `Vencimento ${dueDateLabel} · ` : ''}
               {fileName || 'Importe um arquivo para começar'}
             </small>
@@ -475,7 +476,7 @@ function App() {
                 {invoices.length === 0 && <option value="">Nenhuma fatura salva</option>}
                 {invoices.map((invoice) => (
                   <option key={invoice.id} value={invoice.id}>
-                    {formatReferenceMonth(invoice.referenceMonth)} · {invoice.fileName}
+                    {formatReferenceMonth(invoice.referenceMonth)} · {invoice.card} · {invoice.fileName}
                   </option>
                 ))}
               </select>
@@ -582,11 +583,11 @@ function App() {
             <div className="welcome-number">01</div>
             <div>
               <span className="eyebrow">Primeira importação</span>
-              <h2>Importe o CSV exportado pelo Nubank</h2>
+              <h2>Importe a fatura do seu cartão</h2>
               <p>
-                Após a leitura, a fatura e os lançamentos serão salvos na sua área
-                protegida do Firestore. Nas próximas visitas, a fatura mais recente
-                será carregada automaticamente.
+                Use o arquivo OFX exportado pelo seu banco (funciona com qualquer banco)
+                ou o CSV do Nubank. A fatura e os lançamentos são salvos na sua área
+                protegida do Firestore e a mais recente é carregada automaticamente.
               </p>
             </div>
           </section>
