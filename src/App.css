@@ -185,3 +185,14 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   .panel-heading .button-primary.small{padding:8px 11px}
 }
 @media(max-width:420px){.view-tabs.four button svg{display:none}}
+
+/* V4.0.1 - Alinhamento do topo */
+
+/* E-mail e Sair no canto direito da página, na mesma linha do selo */
+.hero-inner{position:relative}
+.hero-topline{min-height:34px;align-items:center}
+.user-session{position:absolute;top:0;right:0;height:34px;align-items:center}
+
+/* "Outubro de 2026": maiúscula só na primeira letra */
+.reference-box strong,.month-nav strong{text-transform:none}
+.reference-box strong::first-letter,.month-nav strong::first-letter{text-transform:uppercase}
