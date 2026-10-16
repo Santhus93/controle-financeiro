@@ -12,7 +12,7 @@ import {
  * Suporta:
  * - OFX 1.x (SGML), com ou sem tag de fechamento nos campos
  * - OFX 2.x (XML)
- * - arquivos em Windows-1252 (Nubank: CHARSET:1252) ou UTF-8
+ * - arquivos em UTF-8 ou Windows-1252
  * - valores com ponto ou vírgula decimal
  *
  * Convenção interna (igual ao CSV do Nubank):
@@ -29,24 +29,37 @@ export interface OfxStatement {
   ledgerBalance: number | null
 }
 
-function detectEncoding(header: string): string {
-  if (/encoding\s*=\s*["']?utf-?8/i.test(header)) return 'utf-8'
-  if (/CHARSET:\s*(1252|ISO-?8859-?1|8859-1)/i.test(header)) return 'windows-1252'
-  return 'utf-8'
-}
-
+/**
+ * Decodifica o arquivo sem confiar no cabeçalho.
+ * O Nubank declara CHARSET:1252, mas alguns arquivos vêm gravados em UTF-8.
+ * Ler UTF-8 como 1252 gera "CrÃ©dito" e "mÃªs". Por isso:
+ * 1. tenta UTF-8 estrito (falha se houver byte inválido);
+ * 2. se falhar, o arquivo é Windows-1252.
+ */
 async function readOfxText(file: File): Promise<string> {
   const buffer = await file.arrayBuffer()
-  const header = new TextDecoder('ascii').decode(buffer.slice(0, 1024))
-  const encoding = detectEncoding(header)
-  const text = new TextDecoder(encoding).decode(buffer)
 
-  // Se o cabeçalho diz UTF-8 mas o conteúdo é Windows-1252, aparecem caracteres inválidos.
-  if (encoding === 'utf-8' && text.includes('\uFFFD')) {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(buffer)
+  } catch {
     return new TextDecoder('windows-1252').decode(buffer)
   }
+}
 
-  return text
+/**
+ * Proteção extra: corrige texto que já chegou com acento quebrado
+ * (UTF-8 lido como Windows-1252), por exemplo "CrÃ©dito" -> "Crédito".
+ */
+export function repairMojibake(value: string): string {
+  if (!/[ÃÂ][\u0080-\u00FF]/.test(value)) return value
+
+  try {
+    const bytes = new Uint8Array([...value].map((char) => char.charCodeAt(0) & 0xff))
+    const repaired = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+    return repaired
+  } catch {
+    return value
+  }
 }
 
 function decodeEntities(value: string): string {
@@ -63,7 +76,7 @@ function decodeEntities(value: string): string {
 /** Lê o valor de um campo simples, com ou sem tag de fechamento. */
 function readTag(block: string, tag: string): string {
   const match = new RegExp(`<${tag}>([^<\\r\\n]*)`, 'i').exec(block)
-  return match ? decodeEntities(match[1].trim()) : ''
+  return match ? repairMojibake(decodeEntities(match[1].trim())) : ''
 }
 
 /** 20261015000000[-3:BRT] -> 2026-10-15 */

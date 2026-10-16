@@ -4,7 +4,12 @@ const LEGACY_STORAGE_KEY = 'controle-financeiro:category-rules:v1'
 
 export type CategoryRuleMap = Record<string, TransactionCategory>
 
+/** A primeira regra que combinar vence. Encargos ficam no topo. */
 const DEFAULT_RULES: Array<{ terms: string[]; category: TransactionCategory }> = [
+  {
+    terms: ['juros', 'multa', 'iof ', 'encargo', 'anuidade', 'tarifa', 'valor pendente', 'saldo anterior', 'fatura atrasada'],
+    category: 'Financeiro',
+  },
   { terms: ['supermercado', 'supermercados', 'carone', 'atacadao', 'assai'], category: 'Supermercado' },
   { terms: ['uber', '99app', 'estacionamento', 'posto', 'combustivel'], category: 'Transporte' },
   { terms: ['drogaria', 'drog ', 'farmacia', 'wellhub', 'academia'], category: 'Saúde' },
