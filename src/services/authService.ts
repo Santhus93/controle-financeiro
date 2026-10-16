@@ -4,7 +4,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
 } from 'firebase/auth'
-import { auth } from '../firebase/firebase'
+import { auth } from '../firebase/app'
 
 export async function loginWithEmail(email: string, password: string) {
   await setPersistence(auth, browserLocalPersistence)

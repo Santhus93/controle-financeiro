@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from 'react'
 import { onAuthStateChanged, type User } from 'firebase/auth'
-import { auth } from '../firebase/firebase'
+import { auth } from '../firebase/app'
 import { loginWithEmail, logout } from '../services/authService'
 
 interface AuthContextValue {

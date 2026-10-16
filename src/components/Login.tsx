@@ -19,9 +19,11 @@ function getLoginError(error: unknown): string {
     case 'auth/too-many-requests':
       return 'Muitas tentativas de acesso. Aguarde um pouco e tente novamente.'
     case 'auth/network-request-failed':
-      return 'Não foi possível conectar ao Firebase. Verifique sua internet.'
+      return 'Sem conexão com o servidor. Verifique sua internet.'
     case 'auth/user-disabled':
-      return 'Este usuário foi desativado no Firebase Authentication.'
+      return 'Este acesso foi desativado.'
+    case 'auth/unauthorized-domain':
+      return 'Este endereço não está autorizado para login.'
     default:
       return `Falha no login (${error.code}).`
   }
@@ -60,15 +62,18 @@ export function Login() {
       <section className="login-brand-panel">
         <div className="login-brand-content">
           <div className="login-logo"><WalletCards size={25} /></div>
-          <span className="login-eyebrow">CONTROLE FINANCEIRO</span>
+          <span className="login-eyebrow">MINHA FATURA</span>
           <h1>Os seus gastos organizados em um só lugar.</h1>
           <p>
-            Importe a fatura do Nubank, categorize os lançamentos e acompanhe seus
-            parcelamentos com os dados protegidos pelo seu login.
+            Importe a fatura do cartão, acompanhe categorias, orçamento e
+            parcelamentos, e veja a evolução mês a mês.
           </p>
           <div className="login-security-note">
             <ShieldCheck size={19} />
-            <span>O CSV é processado no navegador. Somente os dados estruturados serão salvos.</span>
+            <span>
+              O arquivo da fatura é lido no seu navegador. Somente os lançamentos
+              ficam salvos, protegidos pelo seu login.
+            </span>
           </div>
         </div>
       </section>
@@ -78,9 +83,7 @@ export function Login() {
           <div className="login-card-icon"><LockKeyhole size={23} /></div>
           <span className="login-card-eyebrow">ACESSO SEGURO</span>
           <h2>Entre na sua conta</h2>
-          <p className="login-card-description">
-            Use o usuário criado no Firebase Authentication.
-          </p>
+          <p className="login-card-description">Use seu e-mail e senha de acesso.</p>
 
           <label className="login-field">
             <span>E-mail</span>
