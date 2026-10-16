@@ -13,6 +13,7 @@ import {
 import { db } from '../firebase/firebase'
 import type { InvoiceSummary, SaveInvoiceResult, SavedInvoice } from '../types/Invoice'
 import type { Transaction } from '../types/Transaction'
+import { getInvoiceMonth } from '../utils/invoiceReference'
 
 const FIRESTORE_BATCH_LIMIT = 450
 
@@ -129,7 +130,10 @@ function summaryFromSnapshot(id: string, data: Record<string, unknown>): Invoice
 
   return {
     id,
-    referenceMonth: String(data.referenceMonth ?? ''),
+    referenceMonth: getInvoiceMonth(
+      String(data.fileName ?? ''),
+      String(data.referenceMonth ?? ''),
+    ),
     fileName: String(data.fileName ?? ''),
     card: String(data.card ?? 'Nubank'),
     transactionCount: Number(data.transactionCount ?? 0),
@@ -168,7 +172,7 @@ export async function saveInvoice(
     }
   }
 
-  const referenceMonth = getReferenceMonth(transactions)
+  const referenceMonth = getInvoiceMonth(fileName, getReferenceMonth(transactions))
   const totals = calculateTotals(transactions)
   const operations: BatchOperation[] = []
 
@@ -210,9 +214,9 @@ export async function listInvoices(uid: string): Promise<InvoiceSummary[]> {
   const invoicesQuery = query(invoicesCollection(uid), orderBy('importedAt', 'desc'))
   const snapshot = await getDocs(invoicesQuery)
 
-  return snapshot.docs.map((invoiceSnapshot) =>
-    summaryFromSnapshot(invoiceSnapshot.id, invoiceSnapshot.data()),
-  )
+  return snapshot.docs
+    .map((invoiceSnapshot) => summaryFromSnapshot(invoiceSnapshot.id, invoiceSnapshot.data()))
+    .sort((a, b) => b.referenceMonth.localeCompare(a.referenceMonth))
 }
 
 export async function loadInvoice(uid: string, invoiceId: string): Promise<SavedInvoice> {

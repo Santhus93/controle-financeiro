@@ -7,6 +7,7 @@ import { Installments } from './components/Installments'
 import { Login } from './components/Login'
 import { SpendingChart } from './components/SpendingChart'
 import { SummaryCards } from './components/SummaryCards'
+import { TopMerchants } from './components/TopMerchants'
 import { TransactionsTable } from './components/TransactionsTable'
 import { UncategorizedPanel } from './components/UncategorizedPanel'
 import { useAuth } from './contexts/AuthContext'
@@ -35,18 +36,11 @@ import {
 } from './services/firestoreService'
 import type { InvoiceSummary } from './types/Invoice'
 import type { Transaction, TransactionCategory } from './types/Transaction'
-import { formatMonthReference } from './utils/dates'
+import { formatDueDate, formatMonthLabel } from './utils/invoiceReference'
 import './App.css'
 
 function formatReferenceMonth(referenceMonth: string): string {
-  const match = /^(\d{4})-(\d{2})$/.exec(referenceMonth)
-  if (!match) return referenceMonth
-
-  const date = new Date(Number(match[1]), Number(match[2]) - 1, 1)
-  return new Intl.DateTimeFormat('pt-BR', {
-    month: 'long',
-    year: 'numeric',
-  }).format(date)
+  return formatMonthLabel(referenceMonth)
 }
 
 function getFirestoreErrorMessage(cause: unknown): string {
@@ -72,6 +66,9 @@ function App() {
   const [typeFilter, setTypeFilter] = useState('all')
 
   const ruleMap = useMemo(() => rulesToMap(rules), [rules])
+  const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId)
+  const invoiceMonth = selectedInvoice?.referenceMonth ?? ''
+  const dueDateLabel = formatDueDate(fileName)
 
   const categories = useMemo(
     () => [...new Set(transactions.map((item) => item.category))].sort(),
@@ -413,13 +410,12 @@ function App() {
           </div>
 
           <div className="reference-box">
-            <span>Referência analisada</span>
-            <strong>
-              {transactions.length
-                ? formatMonthReference(transactions)
-                : 'Nenhuma fatura'}
-            </strong>
-            <small>{fileName || 'Importe um arquivo para começar'}</small>
+            <span>Fatura analisada</span>
+            <strong>{invoiceMonth ? formatReferenceMonth(invoiceMonth) : 'Nenhuma fatura'}</strong>
+            <small>
+              {dueDateLabel ? `Vencimento ${dueDateLabel} · ` : ''}
+              {fileName || 'Importe um arquivo para começar'}
+            </small>
           </div>
         </div>
       </header>
@@ -491,7 +487,8 @@ function App() {
               <CategoryChart transactions={transactions} />
               <SpendingChart transactions={transactions} />
             </section>
-            <Installments transactions={transactions} />
+            <TopMerchants transactions={transactions} />
+            {invoiceMonth && <Installments transactions={transactions} invoiceMonth={invoiceMonth} />}
             <TransactionsTable
               transactions={filtered}
               categories={categories}
