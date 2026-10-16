@@ -1,6 +1,8 @@
 import type { TransactionCategory } from '../types/Transaction'
 
-const STORAGE_KEY = 'controle-financeiro:category-rules:v1'
+const LEGACY_STORAGE_KEY = 'controle-financeiro:category-rules:v1'
+
+export type CategoryRuleMap = Record<string, TransactionCategory>
 
 const DEFAULT_RULES: Array<{ terms: string[]; category: TransactionCategory }> = [
   { terms: ['supermercado', 'supermercados', 'carone', 'atacadao', 'assai'], category: 'Supermercado' },
@@ -14,7 +16,7 @@ const DEFAULT_RULES: Array<{ terms: string[]; category: TransactionCategory }> =
   { terms: ['pix no credito'], category: 'Pix / Transferências' },
 ]
 
-function normalize(value: string): string {
+export function normalizeText(value: string): string {
   return value
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -22,8 +24,13 @@ function normalize(value: string): string {
     .toLowerCase()
 }
 
+/**
+ * Chave do estabelecimento usada pelo De-Para.
+ * Remove acentos, números, "Parcela x/y" e pontuação, para que
+ * lançamentos do mesmo estabelecimento gerem a mesma chave.
+ */
 export function merchantKey(title: string): string {
-  return normalize(title)
+  return normalizeText(title)
     .replace(/\bparcela\s*\d+\s*\/\s*\d+\b/g, '')
     .replace(/\d+/g, '')
     .replace(/[^a-z\s*]/g, ' ')
@@ -31,29 +38,37 @@ export function merchantKey(title: string): string {
     .trim()
 }
 
-export function loadCustomCategoryRules(): Record<string, TransactionCategory> {
+/**
+ * Prioridade:
+ * 1. regra personalizada do usuário (Firestore)
+ * 2. regras padrão do sistema
+ * 3. "Não categorizado"
+ */
+export function detectCategory(
+  title: string,
+  customRules: CategoryRuleMap = {},
+): TransactionCategory {
+  const custom = customRules[merchantKey(title)]
+  if (custom) return custom
+
+  const normalized = normalizeText(title)
+  const matchedRule = DEFAULT_RULES.find((rule) =>
+    rule.terms.some((term) => normalized.includes(normalizeText(term))),
+  )
+
+  return matchedRule?.category ?? 'Não categorizado'
+}
+
+/** Regras antigas da V1, salvas no localStorage do navegador. */
+export function readLegacyLocalRules(): CategoryRuleMap {
   try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')
-    return parsed && typeof parsed === 'object' ? parsed : {}
+    const parsed = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) ?? '{}')
+    return parsed && typeof parsed === 'object' ? (parsed as CategoryRuleMap) : {}
   } catch {
     return {}
   }
 }
 
-export function saveCustomCategory(title: string, category: TransactionCategory): void {
-  const rules = loadCustomCategoryRules()
-  rules[merchantKey(title)] = category
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(rules))
-}
-
-export function detectCategory(title: string): TransactionCategory {
-  const normalized = normalize(title)
-  const custom = loadCustomCategoryRules()[merchantKey(title)]
-  if (custom) return custom
-
-  const matchedRule = DEFAULT_RULES.find((rule) =>
-    rule.terms.some((term) => normalized.includes(normalize(term))),
-  )
-
-  return matchedRule?.category ?? 'Não categorizado'
+export function clearLegacyLocalRules(): void {
+  localStorage.removeItem(LEGACY_STORAGE_KEY)
 }

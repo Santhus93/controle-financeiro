@@ -16,6 +16,8 @@ import type { Transaction } from '../types/Transaction'
 
 const FIRESTORE_BATCH_LIMIT = 450
 
+type BatchOperation = (batch: ReturnType<typeof writeBatch>) => void
+
 function invoicesCollection(uid: string) {
   return collection(db, 'users', uid, 'invoices')
 }
@@ -138,9 +140,7 @@ function summaryFromSnapshot(id: string, data: Record<string, unknown>): Invoice
   }
 }
 
-async function commitInChunks(
-  operations: Array<(batch: ReturnType<typeof writeBatch>) => void>,
-): Promise<void> {
+async function commitInChunks(operations: BatchOperation[]): Promise<void> {
   for (let start = 0; start < operations.length; start += FIRESTORE_BATCH_LIMIT) {
     const batch = writeBatch(db)
     operations.slice(start, start + FIRESTORE_BATCH_LIMIT).forEach((operation) => operation(batch))
@@ -170,7 +170,7 @@ export async function saveInvoice(
 
   const referenceMonth = getReferenceMonth(transactions)
   const totals = calculateTotals(transactions)
-  const operations: Array<(batch: ReturnType<typeof writeBatch>) => void> = []
+  const operations: BatchOperation[] = []
 
   operations.push((batch) => {
     batch.set(invoiceRef, {
@@ -235,8 +235,8 @@ export async function loadInvoice(uid: string, invoiceId: string): Promise<Saved
 
 export async function deleteInvoice(uid: string, invoiceId: string): Promise<void> {
   const transactionSnapshots = await getDocs(transactionsCollection(uid, invoiceId))
-  const deleteOperations = transactionSnapshots.docs.map(
-    (transactionSnapshot) => (batch: ReturnType<typeof writeBatch>) => {
+  const deleteOperations: BatchOperation[] = transactionSnapshots.docs.map(
+    (transactionSnapshot) => (batch) => {
       batch.delete(transactionSnapshot.ref)
     },
   )
@@ -251,9 +251,25 @@ export async function updateTransactionCategory(
   transactionId: string,
   category: Transaction['category'],
 ): Promise<void> {
-  const batch = writeBatch(db)
-  const transactionRef = doc(transactionsCollection(uid, invoiceId), transactionId)
-  batch.update(transactionRef, { category })
-  batch.update(invoiceDocument(uid, invoiceId), { updatedAt: serverTimestamp() })
-  await batch.commit()
+  await updateTransactionsCategory(uid, invoiceId, [transactionId], category)
+}
+
+/** Atualiza a categoria de vários lançamentos da mesma fatura de uma vez. */
+export async function updateTransactionsCategory(
+  uid: string,
+  invoiceId: string,
+  transactionIds: string[],
+  category: Transaction['category'],
+): Promise<void> {
+  if (!transactionIds.length) return
+
+  const operations: BatchOperation[] = transactionIds.map((transactionId) => (batch) => {
+    batch.update(doc(transactionsCollection(uid, invoiceId), transactionId), { category })
+  })
+
+  operations.push((batch) => {
+    batch.update(invoiceDocument(uid, invoiceId), { updatedAt: serverTimestamp() })
+  })
+
+  await commitInChunks(operations)
 }

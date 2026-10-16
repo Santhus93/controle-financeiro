@@ -1,21 +1,37 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Cloud, LoaderCircle, LogOut, Trash2 } from 'lucide-react'
 import { CategoryChart } from './components/CategoryChart'
+import { CategoryRules } from './components/CategoryRules'
 import { FileUpload } from './components/FileUpload'
 import { Installments } from './components/Installments'
 import { Login } from './components/Login'
 import { SpendingChart } from './components/SpendingChart'
 import { SummaryCards } from './components/SummaryCards'
 import { TransactionsTable } from './components/TransactionsTable'
+import { UncategorizedPanel } from './components/UncategorizedPanel'
 import { useAuth } from './contexts/AuthContext'
-import { saveCustomCategory } from './services/categoryEngine'
+import {
+  clearLegacyLocalRules,
+  detectCategory,
+  merchantKey,
+  readLegacyLocalRules,
+} from './services/categoryEngine'
+import {
+  deleteCategoryRule,
+  importLegacyRules,
+  listCategoryRules,
+  rulesToMap,
+  saveCategoryRule,
+  sortRules,
+  type CategoryRule,
+} from './services/categoryRulesService'
 import { parseNubankCsv } from './services/csvParser'
 import {
   deleteInvoice,
   listInvoices,
   loadInvoice,
   saveInvoice,
-  updateTransactionCategory,
+  updateTransactionsCategory,
 } from './services/firestoreService'
 import type { InvoiceSummary } from './types/Invoice'
 import type { Transaction, TransactionCategory } from './types/Transaction'
@@ -42,16 +58,20 @@ function App() {
   const { user, loading: authLoading, logout } = useAuth()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([])
+  const [rules, setRules] = useState<CategoryRule[]>([])
   const [selectedInvoiceId, setSelectedInvoiceId] = useState('')
   const [fileName, setFileName] = useState('')
   const [loading, setLoading] = useState(false)
   const [cloudLoading, setCloudLoading] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [savingRule, setSavingRule] = useState(false)
   const [error, setError] = useState('')
   const [cloudMessage, setCloudMessage] = useState('')
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
+
+  const ruleMap = useMemo(() => rulesToMap(rules), [rules])
 
   const categories = useMemo(
     () => [...new Set(transactions.map((item) => item.category))].sort(),
@@ -92,6 +112,7 @@ function App() {
   useEffect(() => {
     if (!user) {
       setInvoices([])
+      setRules([])
       setTransactions([])
       setSelectedInvoiceId('')
       setFileName('')
@@ -103,9 +124,22 @@ function App() {
     const loadInitialData = async () => {
       setCloudLoading(true)
       setError('')
-      setCloudMessage('Carregando suas faturas...')
+      setCloudMessage('Carregando suas faturas e regras...')
 
       try {
+        let foundRules = await listCategoryRules(user.uid)
+
+        // Migra regras antigas da V1 (localStorage) para o Firestore, uma única vez.
+        const legacyRules = readLegacyLocalRules()
+        if (Object.keys(legacyRules).length > 0) {
+          const imported = await importLegacyRules(user.uid, legacyRules, rulesToMap(foundRules))
+          clearLegacyLocalRules()
+          if (imported > 0) foundRules = await listCategoryRules(user.uid)
+        }
+
+        if (cancelled) return
+        setRules(foundRules)
+
         const foundInvoices = await listInvoices(user.uid)
         if (cancelled) return
 
@@ -150,7 +184,14 @@ function App() {
 
     try {
       const parsed = await parseNubankCsv(file)
-      const result = await saveInvoice(user.uid, file.name, parsed)
+
+      // Aplica as regras do usuário (Firestore) antes de salvar.
+      const categorized = parsed.map((item) => ({
+        ...item,
+        category: detectCategory(item.originalTitle, ruleMap),
+      }))
+
+      const result = await saveInvoice(user.uid, file.name, categorized)
       const refreshedInvoices = await listInvoices(user.uid)
 
       setInvoices(refreshedInvoices)
@@ -162,7 +203,7 @@ function App() {
       setCloudMessage(
         result.alreadyExisted
           ? 'Esta fatura já estava salva. A versão existente foi carregada.'
-          : 'Fatura e lançamentos salvos no Firestore.',
+          : 'Fatura e lançamentos salvos no Firestore, com as suas regras de categoria aplicadas.',
       )
     } catch (cause) {
       setError(getFirestoreErrorMessage(cause))
@@ -229,22 +270,113 @@ function App() {
     }
   }
 
-  const handleCategoryChange = (
-    id: string,
-    category: TransactionCategory,
-  ) => {
+  /**
+   * Salva a regra do estabelecimento no Firestore e atualiza
+   * todos os lançamentos do mesmo estabelecimento na fatura aberta.
+   */
+  const applyCategoryToMerchant = async (title: string, category: TransactionCategory) => {
+    if (!user) return
+
+    const key = merchantKey(title)
+    const affected = transactions.filter((item) => merchantKey(item.originalTitle) === key)
+
     setTransactions((current) =>
-      current.map((item) => {
-        if (item.id !== id) return item
-        saveCustomCategory(item.originalTitle, category)
-        return { ...item, category }
-      }),
+      current.map((item) =>
+        merchantKey(item.originalTitle) === key ? { ...item, category } : item,
+      ),
     )
 
-    if (user && selectedInvoiceId) {
-      void updateTransactionCategory(user.uid, selectedInvoiceId, id, category).catch(
-        (cause) => setError(getFirestoreErrorMessage(cause)),
+    setSavingRule(true)
+    setError('')
+
+    try {
+      const rule = await saveCategoryRule(user.uid, title, category)
+      setRules((current) => sortRules([...current.filter((item) => item.id !== rule.id), rule]))
+
+      if (selectedInvoiceId && affected.length) {
+        await updateTransactionsCategory(
+          user.uid,
+          selectedInvoiceId,
+          affected.map((item) => item.id),
+          category,
+        )
+      }
+
+      setCloudMessage(
+        `Regra salva: ${affected.length} lançamento(s) de "${affected[0]?.title ?? title}" agora em ${category}.`,
       )
+    } catch (cause) {
+      setError(getFirestoreErrorMessage(cause))
+    } finally {
+      setSavingRule(false)
+    }
+  }
+
+  const handleCategoryChange = (id: string, category: TransactionCategory) => {
+    const transaction = transactions.find((item) => item.id === id)
+    if (transaction) void applyCategoryToMerchant(transaction.originalTitle, category)
+  }
+
+  const handleRuleChange = (rule: CategoryRule, category: TransactionCategory) => {
+    void applyCategoryToMerchant(rule.sampleTitle, category)
+  }
+
+  const handleDeleteRule = async (rule: CategoryRule) => {
+    if (!user) return
+    if (!window.confirm(`Excluir a regra "${rule.sampleTitle}" → ${rule.category}?`)) return
+
+    setSavingRule(true)
+    setError('')
+
+    try {
+      await deleteCategoryRule(user.uid, rule.id)
+      setRules((current) => current.filter((item) => item.id !== rule.id))
+      setCloudMessage('Regra excluída. Os lançamentos já categorizados foram mantidos.')
+    } catch (cause) {
+      setError(getFirestoreErrorMessage(cause))
+    } finally {
+      setSavingRule(false)
+    }
+  }
+
+  const handleReapplyRules = async () => {
+    if (!user || !selectedInvoiceId) return
+
+    const changes = transactions
+      .map((item) => ({ item, ruleCategory: ruleMap[merchantKey(item.originalTitle)] }))
+      .filter(({ item, ruleCategory }) => ruleCategory && ruleCategory !== item.category)
+
+    if (!changes.length) {
+      setCloudMessage('Nenhuma alteração: a fatura já está de acordo com as regras.')
+      return
+    }
+
+    setSavingRule(true)
+    setError('')
+
+    try {
+      const byCategory = new Map<TransactionCategory, string[]>()
+      changes.forEach(({ item, ruleCategory }) => {
+        const ids = byCategory.get(ruleCategory) ?? []
+        ids.push(item.id)
+        byCategory.set(ruleCategory, ids)
+      })
+
+      for (const [category, ids] of byCategory) {
+        await updateTransactionsCategory(user.uid, selectedInvoiceId, ids, category)
+      }
+
+      setTransactions((current) =>
+        current.map((item) => {
+          const ruleCategory = ruleMap[merchantKey(item.originalTitle)]
+          return ruleCategory ? { ...item, category: ruleCategory } : item
+        }),
+      )
+      setCloudMessage(`${changes.length} lançamento(s) atualizado(s) pelas regras.`)
+    } catch (cause) {
+      setError(getFirestoreErrorMessage(cause))
+    } finally {
+      setSavingRule(false)
     }
   }
 
@@ -298,7 +430,9 @@ function App() {
             <Cloud size={19} />
             <div>
               <strong>Histórico na nuvem</strong>
-              <span>{invoices.length} fatura(s) salva(s)</span>
+              <span>
+                {invoices.length} fatura(s) · {rules.length} regra(s) de categoria
+              </span>
             </div>
           </div>
 
@@ -331,10 +465,10 @@ function App() {
           </div>
         </section>
 
-        {(cloudMessage || cloudLoading) && (
+        {(cloudMessage || cloudLoading || savingRule) && (
           <div className="cloud-message">
-            {cloudLoading && <LoaderCircle className="spin" size={16} />}
-            <span>{cloudMessage}</span>
+            {(cloudLoading || savingRule) && <LoaderCircle className="spin" size={16} />}
+            <span>{savingRule ? 'Salvando regra de categoria...' : cloudMessage}</span>
           </div>
         )}
 
@@ -348,6 +482,11 @@ function App() {
         {transactions.length > 0 && (
           <>
             <SummaryCards transactions={transactions} />
+            <UncategorizedPanel
+              transactions={transactions}
+              saving={savingRule}
+              onAssign={(title, category) => void applyCategoryToMerchant(title, category)}
+            />
             <section className="charts-grid">
               <CategoryChart transactions={transactions} />
               <SpendingChart transactions={transactions} />
@@ -363,6 +502,14 @@ function App() {
               onCategoryFilter={setCategoryFilter}
               onTypeFilter={setTypeFilter}
               onCategoryChange={handleCategoryChange}
+            />
+            <CategoryRules
+              rules={rules}
+              transactions={transactions}
+              saving={savingRule}
+              onChange={handleRuleChange}
+              onDelete={(rule) => void handleDeleteRule(rule)}
+              onReapply={() => void handleReapplyRules()}
             />
           </>
         )}
