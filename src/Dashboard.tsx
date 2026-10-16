@@ -1,11 +1,22 @@
 import { useEffect, useMemo, useState } from 'react'
-import { BarChart3, Cloud, LayoutDashboard, LoaderCircle, LogOut, Trash2 } from 'lucide-react'
+import {
+  BarChart3,
+  CalendarDays,
+  Cloud,
+  CreditCard,
+  LoaderCircle,
+  LogOut,
+  Receipt,
+  Trash2,
+} from 'lucide-react'
+import { BillsManager } from './components/BillsManager'
 import { BudgetPanel } from './components/BudgetPanel'
 import { CategoryChart } from './components/CategoryChart'
 import { CategoryRules } from './components/CategoryRules'
 import { FileUpload } from './components/FileUpload'
 import { HistoryView } from './components/HistoryView'
 import { Installments } from './components/Installments'
+import { MonthOverview } from './components/MonthOverview'
 import { SpendingChart } from './components/SpendingChart'
 import { SummaryCards } from './components/SummaryCards'
 import { TopMerchants } from './components/TopMerchants'
@@ -28,6 +39,17 @@ import {
   sortRules,
   type CategoryRule,
 } from './services/categoryRulesService'
+import {
+  deleteBill,
+  deleteIncome,
+  listBillPayments,
+  listBills,
+  listIncomes,
+  markBillPaid,
+  saveBill,
+  saveIncome,
+  unmarkBillPaid,
+} from './services/financeService'
 import { describeLedgerCheck, importStatement } from './services/importService'
 import {
   deleteInvoice,
@@ -38,9 +60,13 @@ import {
   saveInvoice,
   updateTransactionsCategory,
 } from './services/firestoreService'
+import type { Bill, BillPayment, Income, NewBill, NewIncome } from './types/Finance'
 import type { InvoiceSummary, SavedInvoice } from './types/Invoice'
 import type { Transaction, TransactionCategory } from './types/Transaction'
 import { formatDueDate, formatMonthLabel } from './utils/invoiceReference'
+import { currentMonth } from './utils/monthPlan'
+
+type View = 'month' | 'invoice' | 'bills' | 'history'
 
 function formatReferenceMonth(referenceMonth: string): string {
   return formatMonthLabel(referenceMonth)
@@ -71,11 +97,16 @@ export default function Dashboard() {
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
-  const [view, setView] = useState<'invoice' | 'history'>('invoice')
+  const [view, setView] = useState<View>('month')
   const [history, setHistory] = useState<SavedInvoice[] | null>(null)
   const [historyLoading, setHistoryLoading] = useState(false)
   const [budget, setBudget] = useState<Budget>(EMPTY_BUDGET)
   const [savingBudget, setSavingBudget] = useState(false)
+  const [month, setMonth] = useState(currentMonth())
+  const [bills, setBills] = useState<Bill[]>([])
+  const [payments, setPayments] = useState<BillPayment[]>([])
+  const [incomes, setIncomes] = useState<Income[]>([])
+  const [savingFinance, setSavingFinance] = useState(false)
 
   const ruleMap = useMemo(() => rulesToMap(rules), [rules])
   const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId)
@@ -150,6 +181,9 @@ export default function Dashboard() {
       setInvoices([])
       setRules([])
       setBudget(EMPTY_BUDGET)
+      setBills([])
+      setPayments([])
+      setIncomes([])
       setTransactions([])
       setSelectedInvoiceId('')
       setFileName('')
@@ -161,7 +195,7 @@ export default function Dashboard() {
     const loadInitialData = async () => {
       setCloudLoading(true)
       setError('')
-      setCloudMessage('Carregando suas faturas, regras e orçamento...')
+      setCloudMessage('Carregando seus dados...')
 
       try {
         let foundRules = await listCategoryRules(user.uid)
@@ -177,13 +211,19 @@ export default function Dashboard() {
         if (cancelled) return
         setRules(foundRules)
 
-        const foundBudget = await loadBudget(user.uid)
+        const [foundBudget, foundBills, foundPayments, foundIncomes, foundInvoices] = await Promise.all([
+          loadBudget(user.uid),
+          listBills(user.uid),
+          listBillPayments(user.uid),
+          listIncomes(user.uid),
+          listInvoices(user.uid),
+        ])
         if (cancelled) return
+
         setBudget(foundBudget)
-
-        const foundInvoices = await listInvoices(user.uid)
-        if (cancelled) return
-
+        setBills(foundBills)
+        setPayments(foundPayments)
+        setIncomes(foundIncomes)
         setInvoices(foundInvoices)
 
         if (foundInvoices.length > 0) {
@@ -195,10 +235,8 @@ export default function Dashboard() {
             latestInvoice.fileName,
             latestInvoice.transactions,
           )
-          setCloudMessage('Fatura mais recente carregada da nuvem.')
-        } else {
-          setCloudMessage('Nenhuma fatura salva. Importe a primeira fatura.')
         }
+        setCloudMessage('')
       } catch (cause) {
         if (!cancelled) {
           setError(getFirestoreErrorMessage(cause))
@@ -394,6 +432,73 @@ export default function Dashboard() {
     }
   }
 
+  // ---------- Contas fixas e receitas ----------
+
+  /** Executa uma operação de contas/receitas com indicador de salvamento e tratamento de erro. */
+  const runFinance = async (operation: () => Promise<void>, message: string): Promise<boolean> => {
+    if (!user) return false
+
+    setSavingFinance(true)
+    setError('')
+
+    try {
+      await operation()
+      setCloudMessage(message)
+      return true
+    } catch (cause) {
+      setError(getFirestoreErrorMessage(cause))
+      return false
+    } finally {
+      setSavingFinance(false)
+    }
+  }
+
+  const handleSaveBill = (bill: NewBill) =>
+    runFinance(async () => {
+      const saved = await saveBill(user!.uid, bill)
+      setBills((current) => [...current.filter((item) => item.id !== saved.id), saved])
+    }, `Conta "${bill.name.trim()}" salva.`)
+
+  const handleDeleteBill = (bill: Bill) => {
+    if (!window.confirm(`Excluir a conta "${bill.name}" e o histórico de pagamentos dela?`)) return
+    void runFinance(async () => {
+      await deleteBill(user!.uid, bill.id)
+      setBills((current) => current.filter((item) => item.id !== bill.id))
+      setPayments((current) => current.filter((item) => item.billId !== bill.id))
+    }, `Conta "${bill.name}" excluída.`)
+  }
+
+  const handlePayBill = (bill: Bill, amount: number) =>
+    void runFinance(async () => {
+      const payment = await markBillPaid(user!.uid, bill.id, month, amount)
+      setPayments((current) => [...current.filter((item) => item.id !== payment.id), payment])
+    }, `"${bill.name}" marcada como paga.`)
+
+  const handleUnpayBill = (bill: Bill) =>
+    void runFinance(async () => {
+      await unmarkBillPaid(user!.uid, bill.id, month)
+      setPayments((current) => current.filter((item) => !(item.billId === bill.id && item.month === month)))
+    }, `Pagamento de "${bill.name}" desfeito.`)
+
+  const handleSaveIncome = (income: NewIncome) =>
+    runFinance(async () => {
+      const saved = await saveIncome(user!.uid, income)
+      setIncomes((current) => [...current.filter((item) => item.id !== saved.id), saved])
+    }, `Receita "${income.name.trim()}" salva.`)
+
+  const handleDeleteIncome = (income: Income) => {
+    if (!window.confirm(`Excluir a receita "${income.name}"?`)) return
+    void runFinance(async () => {
+      await deleteIncome(user!.uid, income.id)
+      setIncomes((current) => current.filter((item) => item.id !== income.id))
+    }, `Receita "${income.name}" excluída.`)
+  }
+
+  const openInvoice = (invoiceId: string) => {
+    setView('invoice')
+    void handleInvoiceSelection(invoiceId)
+  }
+
   const handleCategoryChange = (id: string, category: TransactionCategory) => {
     const transaction = transactions.find((item) => item.id === id)
     if (transaction) void applyCategoryToMerchant(transaction.originalTitle, category)
@@ -464,6 +569,8 @@ export default function Dashboard() {
 
   if (!user) return null
 
+  const busy = cloudLoading || savingRule || savingFinance
+
   return (
     <div className="app-shell">
       <header className="hero">
@@ -478,94 +585,92 @@ export default function Dashboard() {
                 </button>
               </div>
             </div>
-            <h1>Entenda para onde vai o dinheiro da sua fatura.</h1>
+            <h1>Seu mês inteiro, em um só lugar.</h1>
             <p>
-              Importe a fatura em OFX ou CSV, salve o histórico na nuvem e acompanhe
-              despesas, orçamento e parcelamentos em qualquer dispositivo.
+              Receitas, fatura do cartão e contas fixas juntas, para você saber quanto
+              entra, quanto sai e quanto sobra.
             </p>
           </div>
 
           <div className="reference-box">
-            <span>Fatura analisada</span>
-            <strong>{invoiceMonth ? formatReferenceMonth(invoiceMonth) : 'Nenhuma fatura'}</strong>
+            <span>{view === 'invoice' ? 'Fatura analisada' : 'Mês em foco'}</span>
+            <strong>
+              {view === 'invoice'
+                ? invoiceMonth
+                  ? formatReferenceMonth(invoiceMonth)
+                  : 'Nenhuma fatura'
+                : formatReferenceMonth(month)}
+            </strong>
             <small>
-              {selectedInvoice?.card ? `${selectedInvoice.card} · ` : ''}
-              {dueDateLabel ? `Vencimento ${dueDateLabel} · ` : ''}
-              {fileName || 'Importe um arquivo para começar'}
+              {view === 'invoice'
+                ? `${selectedInvoice?.card ? `${selectedInvoice.card} · ` : ''}${
+                    dueDateLabel ? `Vencimento ${dueDateLabel} · ` : ''
+                  }${fileName || 'Importe um arquivo para começar'}`
+                : `${invoices.length} fatura(s) · ${bills.length} conta(s) fixa(s) · ${incomes.length} receita(s)`}
             </small>
           </div>
         </div>
       </header>
 
       <main className="container-app">
-        <section className="cloud-toolbar">
-          <div className="cloud-toolbar-title">
-            <Cloud size={19} />
-            <div>
-              <strong>Histórico na nuvem</strong>
-              <span>
-                {invoices.length} fatura(s) · {rules.length} regra(s) de categoria
-              </span>
-            </div>
-          </div>
-
-          <div className="cloud-toolbar-actions">
-            <label>
-              <span>Fatura</span>
-              <select
-                value={selectedInvoiceId}
-                disabled={cloudLoading || invoices.length === 0}
-                onChange={(event) => void handleInvoiceSelection(event.target.value)}
-              >
-                {invoices.length === 0 && <option value="">Nenhuma fatura salva</option>}
-                {invoices.map((invoice) => (
-                  <option key={invoice.id} value={invoice.id}>
-                    {formatReferenceMonth(invoice.referenceMonth)} · {invoice.card} · {invoice.fileName}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <button
-              type="button"
-              className="delete-invoice-button"
-              disabled={!selectedInvoiceId || deleting || cloudLoading}
-              onClick={() => void handleDeleteInvoice()}
-            >
-              {deleting ? <LoaderCircle className="spin" size={16} /> : <Trash2 size={16} />}
-              Excluir
-            </button>
-          </div>
-        </section>
-
-        {(cloudMessage || cloudLoading || savingRule) && (
-          <div className="cloud-message">
-            {(cloudLoading || savingRule) && <LoaderCircle className="spin" size={16} />}
-            <span>{savingRule ? 'Salvando regra de categoria...' : cloudMessage}</span>
-          </div>
-        )}
-
-        <nav className="view-tabs">
-          <button
-            type="button"
-            className={view === 'invoice' ? 'active' : ''}
-            onClick={() => setView('invoice')}
-          >
-            <LayoutDashboard size={16} /> Fatura
+        <nav className="view-tabs four">
+          <button type="button" className={view === 'month' ? 'active' : ''} onClick={() => setView('month')}>
+            <CalendarDays size={16} /> <span>Meu mês</span>
           </button>
-          <button
-            type="button"
-            className={view === 'history' ? 'active' : ''}
-            onClick={() => setView('history')}
-          >
-            <BarChart3 size={16} /> Histórico
+          <button type="button" className={view === 'invoice' ? 'active' : ''} onClick={() => setView('invoice')}>
+            <CreditCard size={16} /> <span>Cartão</span>
+          </button>
+          <button type="button" className={view === 'bills' ? 'active' : ''} onClick={() => setView('bills')}>
+            <Receipt size={16} /> <span>Contas</span>
+          </button>
+          <button type="button" className={view === 'history' ? 'active' : ''} onClick={() => setView('history')}>
+            <BarChart3 size={16} /> <span>Histórico</span>
           </button>
         </nav>
 
-        {view === 'history' && error && history === null && (
-          <div className="inline-error history-error">{error}</div>
+        {(cloudMessage || busy) && (
+          <div className="cloud-message">
+            {busy && <LoaderCircle className="spin" size={16} />}
+            <span>
+              {savingRule ? 'Salvando regra de categoria...' : savingFinance ? 'Salvando...' : cloudMessage}
+            </span>
+          </div>
         )}
 
+        {error && view !== 'invoice' && <div className="inline-error history-error">{error}</div>}
+
+        {/* ---------- Meu mês ---------- */}
+        {view === 'month' && !cloudLoading && (
+          <MonthOverview
+            month={month}
+            onMonthChange={setMonth}
+            invoices={invoices}
+            bills={bills}
+            payments={payments}
+            incomes={incomes}
+            saving={savingFinance}
+            onPay={handlePayBill}
+            onUnpay={handleUnpayBill}
+            onOpenInvoice={openInvoice}
+            onManage={() => setView('bills')}
+          />
+        )}
+
+        {/* ---------- Contas e receitas ---------- */}
+        {view === 'bills' && (
+          <BillsManager
+            month={month}
+            bills={bills}
+            incomes={incomes}
+            saving={savingFinance}
+            onSaveBill={handleSaveBill}
+            onDeleteBill={handleDeleteBill}
+            onSaveIncome={handleSaveIncome}
+            onDeleteIncome={handleDeleteIncome}
+          />
+        )}
+
+        {/* ---------- Histórico ---------- */}
         {view === 'history' && !(error && history === null) && (
           historyLoading || history === null ? (
             <div className="cloud-message">
@@ -577,13 +682,56 @@ export default function Dashboard() {
           )
         )}
 
+        {/* ---------- Cartão ---------- */}
         {view === 'invoice' && (
-          <FileUpload
-            fileName={fileName}
-            loading={loading}
-            error={error}
-            onFile={handleFile}
-          />
+          <>
+            <section className="cloud-toolbar">
+              <div className="cloud-toolbar-title">
+                <Cloud size={19} />
+                <div>
+                  <strong>Faturas do cartão</strong>
+                  <span>
+                    {invoices.length} fatura(s) · {rules.length} regra(s) de categoria
+                  </span>
+                </div>
+              </div>
+
+              <div className="cloud-toolbar-actions">
+                <label>
+                  <span>Fatura</span>
+                  <select
+                    value={selectedInvoiceId}
+                    disabled={cloudLoading || invoices.length === 0}
+                    onChange={(event) => void handleInvoiceSelection(event.target.value)}
+                  >
+                    {invoices.length === 0 && <option value="">Nenhuma fatura salva</option>}
+                    {invoices.map((invoice) => (
+                      <option key={invoice.id} value={invoice.id}>
+                        {formatReferenceMonth(invoice.referenceMonth)} · {invoice.card} · {invoice.fileName}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <button
+                  type="button"
+                  className="delete-invoice-button"
+                  disabled={!selectedInvoiceId || deleting || cloudLoading}
+                  onClick={() => void handleDeleteInvoice()}
+                >
+                  {deleting ? <LoaderCircle className="spin" size={16} /> : <Trash2 size={16} />}
+                  Excluir
+                </button>
+              </div>
+            </section>
+
+            <FileUpload
+              fileName={fileName}
+              loading={loading}
+              error={error}
+              onFile={handleFile}
+            />
+          </>
         )}
 
         {view === 'invoice' && transactions.length > 0 && (
