@@ -68,3 +68,34 @@
   .transactions-table .empty-table{display:block}
   .table-scroll{overflow:visible}
 }
+
+
+/* V3.3 - Correção de estouro de largura no celular */
+
+/* Impede o iPhone de aumentar a fonte sozinho quando algo passa da tela */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+
+/* Rede de segurança: nada pode empurrar a página para os lados.
+   "clip" (e não "hidden") para não quebrar as abas fixas. */
+.app-shell{overflow-x:clip}
+
+/* Colunas de grid podem encolher abaixo do tamanho do texto */
+.charts-grid,.merchants-layout,.installments-layout,.chart-layout,.budget-grid,.recurring-grid{
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)
+}
+.panel,.merchant-list,.merchant-detail,.merchant-row,.merchant-info,.uncat-row,.uncat-name,
+.installment-card,.recurring-card,.budget-row,.projection{min-width:0}
+
+/* Nomes longos: cortados com reticências em vez de esticar a linha */
+.merchant-line strong,.uncat-name strong,.installment-card h3,.recurring-card strong{
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+}
+
+@media(max-width:1000px){
+  .charts-grid,.merchants-layout,.installments-layout{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:760px){
+  .chart-layout,.budget-grid,.recurring-grid,.installments-layout .installment-grid{grid-template-columns:minmax(0,1fr)}
+  .merchant-row{padding:9px 6px;gap:9px}
+  .merchant-info small{font-size:11px}
+}

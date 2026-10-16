@@ -19,6 +19,10 @@ interface MerchantGroup {
 
 const EXPENSE_TYPES = ['purchase', 'installment', 'pix_credit']
 
+function formatPercent(value: number): string {
+  return `${value.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
+}
+
 export function TopMerchants({ transactions }: TopMerchantsProps) {
   const [selectedKey, setSelectedKey] = useState('')
   const groups = new Map<string, MerchantGroup>()
@@ -65,12 +69,15 @@ export function TopMerchants({ transactions }: TopMerchantsProps) {
               <span className="merchant-rank">{String(index + 1).padStart(2, '0')}</span>
               <div className="merchant-info">
                 <div className="merchant-line">
-                  <strong>{group.title}</strong>
+                  <strong title={group.title}>{group.title}</strong>
                   <span>{formatCurrency(group.total)}</span>
                 </div>
-                <div className="merchant-bar"><span style={{ width: `${(group.total / max) * 100}%` }} /></div>
+                <div className="merchant-bar">
+                  <span style={{ width: `${(group.total / max) * 100}%` }} />
+                </div>
                 <small>
-                  {group.category} · {group.items.length}x · {grandTotal ? ((group.total / grandTotal) * 100).toFixed(1) : '0'}% dos gastos
+                  {group.category} · {group.items.length}x ·{' '}
+                  {formatPercent(grandTotal ? (group.total / grandTotal) * 100 : 0)} dos gastos
                 </small>
               </div>
             </button>
@@ -81,7 +88,7 @@ export function TopMerchants({ transactions }: TopMerchantsProps) {
           {!selected ? (
             <div className="merchant-detail-empty">
               <Store size={26} />
-              <span>Clique em um estabelecimento para ver os lançamentos.</span>
+              <span>Toque em um estabelecimento para ver os lançamentos.</span>
             </div>
           ) : (
             <>
@@ -89,10 +96,13 @@ export function TopMerchants({ transactions }: TopMerchantsProps) {
                 <div>
                   <strong>{selected.title}</strong>
                   <span>
-                    {selected.items.length} lançamento(s) · média {formatCurrency(selected.total / selected.items.length)}
+                    {selected.items.length} lançamento(s) · média{' '}
+                    {formatCurrency(selected.total / selected.items.length)}
                   </span>
                 </div>
-                <button type="button" onClick={() => setSelectedKey('')} aria-label="Fechar"><X size={16} /></button>
+                <button type="button" onClick={() => setSelectedKey('')} aria-label="Fechar">
+                  <X size={16} />
+                </button>
               </div>
               {[...selected.items]
                 .sort((a, b) => b.date.localeCompare(a.date))
