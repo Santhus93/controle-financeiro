@@ -157,6 +157,85 @@ async function commitInChunks(operations: BatchOperation[]): Promise<void> {
   }
 }
 
+export interface EquivalentInvoice {
+  invoice: InvoiceSummary
+  /** Lançamentos com o mesmo valor nas duas faturas. */
+  matched: number
+  /** Maior quantidade de lançamentos entre as duas faturas. */
+  total: number
+  /** true quando é exatamente a mesma fatura (mesma assinatura). */
+  identical: boolean
+}
+
+const EQUIVALENCE_THRESHOLD = 0.9
+
+/**
+ * Conta quantos lançamentos têm o mesmo valor nas duas listas.
+ * Compara só o valor (em centavos), porque data e descrição podem
+ * variar entre formatos (CSV x OFX) e entre bancos.
+ */
+export function countAmountMatches(existing: Transaction[], incoming: Transaction[]): number {
+  const pool = new Map<number, number>()
+  existing.forEach((item) => {
+    const cents = Math.round(item.amount * 100)
+    pool.set(cents, (pool.get(cents) ?? 0) + 1)
+  })
+
+  let matched = 0
+  incoming.forEach((item) => {
+    const cents = Math.round(item.amount * 100)
+    const available = pool.get(cents) ?? 0
+    if (available > 0) {
+      pool.set(cents, available - 1)
+      matched += 1
+    }
+  })
+
+  return matched
+}
+
+/**
+ * Procura uma fatura já salva que seja a mesma da que está sendo importada,
+ * mesmo que venha de outro formato. Candidatas: mesmo mês de referência
+ * ou mesmo total de gastos. Considera equivalente quando 90% ou mais
+ * dos lançamentos têm o mesmo valor.
+ */
+export async function findEquivalentInvoice(
+  uid: string,
+  fileName: string,
+  transactions: Transaction[],
+): Promise<EquivalentInvoice | null> {
+  if (!transactions.length) return null
+
+  const referenceMonth = getInvoiceMonth(fileName, getReferenceMonth(transactions))
+  const { totalExpenses } = calculateTotals(transactions)
+  const invoiceId = await createInvoiceId(transactions)
+  const invoices = await listInvoices(uid)
+
+  const candidates = invoices.filter(
+    (invoice) =>
+      invoice.id === invoiceId ||
+      invoice.referenceMonth === referenceMonth ||
+      Math.abs(invoice.totalExpenses - totalExpenses) < 0.01,
+  )
+
+  let best: EquivalentInvoice | null = null
+
+  for (const candidate of candidates) {
+    const snapshot = await getDocs(transactionsCollection(uid, candidate.id))
+    const existing = snapshot.docs.map((item) => transactionFromFirestore(item.data()))
+    const matched = countAmountMatches(existing, transactions)
+    const total = Math.max(existing.length, transactions.length)
+    const identical = candidate.id === invoiceId
+
+    if ((identical || matched / total >= EQUIVALENCE_THRESHOLD) && (!best || matched > best.matched)) {
+      best = { invoice: candidate, matched, total, identical }
+    }
+  }
+
+  return best
+}
+
 export async function saveInvoice(
   uid: string,
   fileName: string,

@@ -30,6 +30,7 @@ import {
 import { describeLedgerCheck, importStatement } from './services/importService'
 import {
   deleteInvoice,
+  findEquivalentInvoice,
   listInvoices,
   loadAllInvoices,
   loadInvoice,
@@ -220,6 +221,29 @@ function App() {
         category: detectCategory(item.originalTitle, ruleMap),
       }))
 
+      // Verifica se a mesma fatura já existe, inclusive em outro formato (CSV x OFX).
+      const equivalent = await findEquivalentInvoice(user.uid, file.name, categorized)
+      let replacedLabel = ''
+
+      if (equivalent && !equivalent.identical) {
+        const label = `${formatReferenceMonth(equivalent.invoice.referenceMonth)} (${equivalent.invoice.fileName})`
+        const replace = window.confirm(
+          `A fatura de ${label} já está salva: ${equivalent.matched} de ${equivalent.total} lançamentos têm o mesmo valor.\n\n` +
+            `OK: substituir pela versão ${statement.format.toUpperCase()} (${file.name}).\n` +
+            'Cancelar: manter a fatura atual.',
+        )
+
+        if (!replace) {
+          const existing = await loadInvoice(user.uid, equivalent.invoice.id)
+          applyLoadedInvoice(existing.id, existing.fileName, existing.transactions)
+          setCloudMessage(`Importação cancelada: a fatura de ${label} foi mantida.`)
+          return
+        }
+
+        await deleteInvoice(user.uid, equivalent.invoice.id)
+        replacedLabel = ` Substituiu ${equivalent.invoice.fileName}.`
+      }
+
       const result = await saveInvoice(user.uid, file.name, categorized, statement.card)
       const refreshedInvoices = await listInvoices(user.uid)
 
@@ -231,8 +255,9 @@ function App() {
       )
       setCloudMessage(
         (result.alreadyExisted
-          ? 'Esta fatura já estava salva (mesmo que tenha sido importada em outro formato). A versão existente foi carregada.'
-          : `Fatura ${statement.card} (${statement.format.toUpperCase()}) salva com ${categorized.length} lançamentos e as suas regras de categoria aplicadas.`) +
+          ? 'Esta fatura já estava salva. A versão existente foi carregada.'
+          : `Fatura ${statement.card} (${statement.format.toUpperCase()}) salva com ${categorized.length} lançamentos e as suas regras de categoria aplicadas.` +
+            replacedLabel) +
           describeLedgerCheck(statement),
       )
     } catch (cause) {
