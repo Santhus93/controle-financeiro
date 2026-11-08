@@ -76,7 +76,13 @@ src/
 ├── main.tsx                 UiProvider > AuthProvider > App; aplica o tema; registra o service worker
 ├── App.tsx                  Só decide entre Login e Dashboard (Dashboard é carregado sob demanda)
 ├── Dashboard.tsx            Área logada: estado, carregamento do Firestore e as 4 abas
-├── App.css / index.css      Estilos (App.css recebeu blocos acrescentados por versão, ver seção 8)
+├── App.css                  Só os @import de src/styles/ (ordem 01 a 10)
+├── index.css                Reset/base; o @import do Google Fonts é a primeira regra
+├── styles/                  CSS dividido por versão, na ordem em que é aplicado:
+│   ├── 01-base.css, 02-rules.css, 03-installments.css, 04-history.css,
+│   ├── 05-budget.css, 06-mobile.css, 07-overflow.css, 08-month.css,
+│   ├── 09-header.css
+│   └── 10-v43.css           Bloco V4.1/V4.2/V4.3, incluindo o tema escuro
 │
 ├── firebase/
 │   ├── app.ts               initializeApp + Auth (carregado já no login)

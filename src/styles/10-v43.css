@@ -1,0 +1,197 @@
+/* ============================================================
+   V4.1 / V4.2 / V4.3
+   Avisos, janelas, esqueleto, navegação inferior, tema escuro,
+   previsão, gastos avulsos e histórico completo
+============================================================ */
+
+/* ---------- Cards novos ---------- */
+.month-kpis{grid-template-columns:repeat(5,minmax(0,1fr))}
+.stat-card.pink .stat-top{color:#db2777}
+.dot.expenses{background:#db2777}
+.theme-toggle{padding:7px 9px!important}
+
+/* ---------- Indicador de salvamento ---------- */
+.saving-indicator{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:70;display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:99px;background:var(--purple);color:#fff;font-size:12px;font-weight:700;box-shadow:0 8px 24px rgba(43,25,66,.25)}
+
+/* ---------- Avisos (toast) ---------- */
+.toast-stack{position:fixed;right:20px;bottom:20px;z-index:90;display:flex;flex-direction:column;gap:10px;max-width:min(420px,calc(100vw - 32px))}
+.toast{display:flex;align-items:flex-start;gap:10px;padding:13px 14px;border-radius:13px;background:#1f1830;color:#fff;font-size:13px;line-height:1.45;box-shadow:0 14px 34px rgba(0,0,0,.25);animation:toast-in .22s ease-out}
+.toast>svg{flex:none;margin-top:1px}
+.toast span{flex:1}
+.toast.success>svg{color:#4ade80}.toast.error{background:#7f1d1d}.toast.error>svg{color:#fecaca}.toast.info>svg{color:#a78bfa}
+.toast button{flex:none;border:0;background:transparent;color:rgba(255,255,255,.7);padding:0;display:grid;place-items:center}
+@keyframes toast-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* ---------- Janela de confirmação ---------- */
+.dialog-overlay{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;background:rgba(15,8,25,.55);backdrop-filter:blur(3px);animation:fade-in .15s ease-out}
+.dialog{width:min(100%,420px);background:var(--panel);color:var(--ink);border-radius:20px;padding:26px;box-shadow:0 30px 70px rgba(0,0,0,.3);animation:dialog-in .18s ease-out}
+.dialog-icon{width:46px;height:46px;display:grid;place-items:center;border-radius:13px;background:#f0e9fb;color:var(--purple);margin-bottom:14px}
+.dialog-icon.danger{background:#fff1f0;color:#b42318}
+.dialog h2{font:800 19px Manrope;margin:0 0 8px}
+.dialog p{margin:0;color:var(--muted);font-size:14px;line-height:1.55;white-space:pre-line}
+.dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}
+.dialog-actions button{border-radius:11px;padding:11px 16px;font-weight:800;font-size:13px}
+.dialog-cancel{border:1px solid var(--line);background:transparent;color:var(--ink)}
+.dialog-confirm{border:0;background:var(--purple);color:#fff}
+.dialog-confirm.danger{background:#dc2626}
+@keyframes fade-in{from{opacity:0}to{opacity:1}}
+@keyframes dialog-in{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+
+/* ---------- Esqueleto de carregamento ---------- */
+.skeleton-grid{margin:0 0 18px}
+.skeleton-card,.skeleton-panel{display:flex;flex-direction:column;gap:10px}
+.skeleton-panel{margin-bottom:18px}
+.skeleton-line,.skeleton-row,.skeleton-block{display:block;border-radius:8px;background:linear-gradient(90deg,#efe9f6 25%,#f8f5fc 50%,#efe9f6 75%);background-size:200% 100%;animation:shimmer 1.3s infinite linear}
+.skeleton-line{height:10px}.skeleton-line.short{width:30%}.skeleton-line.medium{width:55%}
+.skeleton-line.tall{height:22px;width:70%}.skeleton-line.title{height:18px;width:45%;margin-bottom:6px}
+.skeleton-row{height:44px}.skeleton-block{height:240px}
+@keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+
+/* ---------- Previsão ---------- */
+.forecast-panel{border-left:4px solid #2563eb;display:flex;flex-direction:column;gap:10px}
+.forecast-panel.negative{border-left-color:#dc2626}
+.forecast-panel .panel-heading{margin-bottom:6px}
+.forecast-panel h2{text-transform:none}
+.forecast-panel h2::first-letter{text-transform:uppercase}
+.forecast-result{display:flex;flex-direction:column;text-align:right}
+.forecast-result span{font-size:11px;color:var(--muted)}
+.forecast-result strong{font:800 22px Manrope;color:#2563eb}
+.forecast-panel.negative .forecast-result strong{color:#b42318}
+.forecast-lines{display:flex;flex-direction:column}
+.forecast-line{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+.forecast-line>span{display:flex;align-items:center;gap:7px;flex-wrap:wrap;min-width:0}
+.forecast-line small{flex-basis:100%;padding-left:22px;font-size:11px;color:var(--muted)}
+.forecast-line strong{white-space:nowrap}
+.forecast-line strong.positive{color:#147044}
+.forecast-verdict{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;font-size:13px;font-weight:700}
+.forecast-verdict.positive{background:#eff6ff;color:#1d4ed8}
+.forecast-verdict.negative{background:#fff1f0;color:#b42318}
+
+/* ---------- Gastos avulsos ---------- */
+.expenses-panel{border-left:4px solid #db2777}
+.finance-day.expense{background:#fdf2f8;color:#be185d}
+.expenses-empty{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:0 20px;color:var(--muted)}
+.segmented button{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---------- Histórico completo ---------- */
+.cashflow-history{margin-bottom:18px}
+.month-cell{text-transform:capitalize}
+.positive-text{color:#147044}
+.section-divider{display:flex;align-items:center;gap:12px;margin:8px 0 0;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.section-divider::before,.section-divider::after{content:"";flex:1;height:1px;background:var(--line)}
+
+/* ---------- Celular: navegação inferior ---------- */
+@media(max-width:760px){
+  .month-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .month-kpis .stat-card:last-child{grid-column:1 / -1}
+
+  .app-shell{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+  .view-tabs.four,.view-tabs{
+    position:fixed;top:auto;bottom:0;left:0;right:0;z-index:60;margin:0;
+    border-radius:18px 18px 0 0;border-width:1px 0 0;
+    padding:6px 8px calc(6px + env(safe-area-inset-bottom));
+    background:var(--panel);box-shadow:0 -8px 24px rgba(43,25,66,.12)
+  }
+  .view-tabs.four button{flex-direction:column;gap:3px;padding:7px 2px;font-size:11px;border-radius:12px}
+  .view-tabs.four button svg{display:block!important}
+  .toast-stack{left:16px;right:16px;bottom:calc(86px + env(safe-area-inset-bottom));max-width:none}
+  .saving-indicator{top:auto;bottom:calc(84px + env(safe-area-inset-bottom))}
+  .dialog-overlay{align-items:end;padding:0}
+  .dialog{width:100%;border-radius:22px 22px 0 0;padding:24px 20px calc(20px + env(safe-area-inset-bottom))}
+  .dialog-actions button{flex:1}
+  .skeleton-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .forecast-panel .panel-heading{flex-direction:row}
+}
+
+/* ============================================================
+   TEMA ESCURO
+============================================================ */
+html[data-theme="dark"]{
+  color-scheme:dark;
+  --purple:#8b5cf6;--purple-2:#a78bfa;--ink:#ece8f3;--muted:#a59cb5;
+  --line:#2e2540;--panel:#1a1425;--bg:#0f0b17;--green:#4ade80;--red:#f87171;
+  --shadow:0 14px 40px rgba(0,0,0,.35);
+  background:var(--bg);color:var(--ink)
+}
+html[data-theme="dark"] body{background:var(--bg);color:var(--ink)}
+html[data-theme="dark"] .login-page,
+html[data-theme="dark"] .auth-loading-screen{background:var(--bg);color:var(--ink)}
+
+/* Superfícies */
+html[data-theme="dark"] .stat-card,
+html[data-theme="dark"] .view-tabs,
+html[data-theme="dark"] .login-card,
+html[data-theme="dark"] .login-field input,
+html[data-theme="dark"] .search-field,
+html[data-theme="dark"] .search-field input,
+html[data-theme="dark"] .filters select,
+html[data-theme="dark"] .category-select,
+html[data-theme="dark"] .cloud-toolbar-actions select,
+html[data-theme="dark"] .budget-field>div,
+html[data-theme="dark"] .rules-reapply,
+html[data-theme="dark"] .delete-invoice-button,
+html[data-theme="dark"] .merchant-detail-head button,
+html[data-theme="dark"] .month-nav button,
+html[data-theme="dark"] .due-action.ghost,
+html[data-theme="dark"] .finance-actions button,
+html[data-theme="dark"] .budget-icon-button,
+html[data-theme="dark"] .rule-delete,
+html[data-theme="dark"] .due-pay-form input{background:var(--panel);color:var(--ink);border-color:var(--line)}
+
+/* Tons claros de destaque */
+html[data-theme="dark"] .drop-zone.loaded,
+html[data-theme="dark"] .drop-zone.dragging,
+html[data-theme="dark"] .uncat-row:hover,
+html[data-theme="dark"] .merchant-row:hover,
+html[data-theme="dark"] .projection,
+html[data-theme="dark"] .finance-form,
+html[data-theme="dark"] .total-row td,
+html[data-theme="dark"] .due-row.paid{background:#211a2e}
+html[data-theme="dark"] .merchant-row.active{background:#2a1f40;border-color:#4c3a6b}
+html[data-theme="dark"] .bills-rule{background:#221a33;color:var(--ink)}
+html[data-theme="dark"] .cloud-message{background:#2a1f40;color:var(--purple-2)}
+html[data-theme="dark"] .cloud-toolbar-title{color:var(--purple-2)}
+
+/* Ícones em bloco */
+html[data-theme="dark"] .upload-icon,
+html[data-theme="dark"] .installment-icon,
+html[data-theme="dark"] .recurring-icon,
+html[data-theme="dark"] .due-icon,
+html[data-theme="dark"] .finance-day,
+html[data-theme="dark"] .budget-empty-icon,
+html[data-theme="dark"] .login-card-icon,
+html[data-theme="dark"] .dialog-icon{background:#2a1f40;color:var(--purple-2)}
+html[data-theme="dark"] .finance-day.expense{background:#3a1830;color:#f9a8d4}
+html[data-theme="dark"] .finance-day.income,
+html[data-theme="dark"] .due-row.paid .due-icon,
+html[data-theme="dark"] .due-row.income .due-icon{background:#163323;color:#4ade80}
+
+/* Barras e linhas */
+html[data-theme="dark"] .budget-bar,
+html[data-theme="dark"] .merchant-bar,
+html[data-theme="dark"] .installment-progress,
+html[data-theme="dark"] .projection-bar{background:#2a2238}
+html[data-theme="dark"] td,
+html[data-theme="dark"] .merchant-detail-row,
+html[data-theme="dark"] .transactions-table tr{border-bottom-color:var(--line)}
+
+/* Textos */
+html[data-theme="dark"] .login-field>span,
+html[data-theme="dark"] .budget-field>span{color:var(--ink)}
+html[data-theme="dark"] .welcome-number{color:#3a2f4d}
+html[data-theme="dark"] .stat-card.purple .stat-top{color:#a78bfa}
+html[data-theme="dark"] .stat-card.blue .stat-top{color:#60a5fa}
+html[data-theme="dark"] .stat-card.green .stat-top,
+html[data-theme="dark"] .positive-text,
+html[data-theme="dark"] .due-amount.positive,
+html[data-theme="dark"] .finance-amount.positive,
+html[data-theme="dark"] .forecast-line strong.positive{color:#4ade80}
+html[data-theme="dark"] .forecast-result strong{color:#60a5fa}
+html[data-theme="dark"] .forecast-verdict.positive{background:#172554;color:#93c5fd}
+html[data-theme="dark"] .forecast-verdict.negative,
+html[data-theme="dark"] .inline-error{background:#3b1414;color:#fca5a5}
+
+/* Esqueleto */
+html[data-theme="dark"] .skeleton-line,
+html[data-theme="dark"] .skeleton-row,
+html[data-theme="dark"] .skeleton-block{background:linear-gradient(90deg,#241c33 25%,#2e2540 50%,#241c33 75%);background-size:200% 100%}
