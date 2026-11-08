@@ -1,0 +1,164 @@
+/* Historico do cartao e do mes */
+
+.history-view {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.history-kpis {
+  margin: 0;
+}
+
+.kpi-variation {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.var-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.var-badge.up {
+  background: #fff1f0;
+  color: #b42318;
+}
+
+.var-badge.down {
+  background: #e8f7ef;
+  color: #147044;
+}
+
+.var-badge.neutral {
+  background: #f0edf3;
+  color: #574c62;
+}
+
+.diff-up {
+  color: #b42318;
+}
+
+.diff-down {
+  color: #147044;
+}
+
+.total-row td {
+  border-top: 2px solid var(--line);
+  font-weight: 800;
+  background: #fbfaff;
+}
+
+.history-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 48px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.history-empty strong {
+  color: var(--ink);
+  font: 800 17px Manrope;
+}
+
+.recurring-card>div:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.recurring-card span {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.recurring-card b {
+  font: 800 14px Manrope;
+  white-space: nowrap;
+}
+
+.recurring-card b small {
+  font: 600 10px 'DM Sans';
+  color: var(--muted);
+  margin-left: 2px;
+}
+
+.recurring-icon {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #f0e9fb;
+  color: var(--purple);
+}
+
+.history-error {
+  margin: 0 0 14px;
+}
+
+.recurring-grid {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+  gap: 10px;
+}
+
+.recurring-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  min-width: 0;
+}
+
+.recurring-card strong {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* ---------- Histórico completo ---------- */
+.cashflow-history {
+  margin-bottom: 18px;
+}
+
+.positive-text {
+  color: #147044;
+}
+
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.section-divider::before,
+.section-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}

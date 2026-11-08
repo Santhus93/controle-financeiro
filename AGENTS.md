@@ -76,13 +76,19 @@ src/
 ├── main.tsx                 UiProvider > AuthProvider > App; aplica o tema; registra o service worker
 ├── App.tsx                  Só decide entre Login e Dashboard (Dashboard é carregado sob demanda)
 ├── Dashboard.tsx            Área logada: estado, carregamento do Firestore e as 4 abas
-├── App.css                  Só os @import de src/styles/ (ordem 01 a 10)
+├── App.css                  Só os @import de src/styles/ (ordem abaixo)
 ├── index.css                Reset/base; o @import do Google Fonts é a primeira regra
-├── styles/                  CSS dividido por versão, na ordem em que é aplicado:
-│   ├── 01-base.css, 02-rules.css, 03-installments.css, 04-history.css,
-│   ├── 05-budget.css, 06-mobile.css, 07-overflow.css, 08-month.css,
-│   ├── 09-header.css
-│   └── 10-v43.css           Bloco V4.1/V4.2/V4.3, incluindo o tema escuro
+├── styles/                  CSS organizado por funcionalidade, na ordem em que é aplicado:
+│   ├── base.css             Variáveis :root, reset, containers, .panel, botões e campos
+│   ├── layout.css           .hero*, .reference-box, .user-session, .view-tabs*, footer
+│   ├── feedback.css         Toast, dialog e skeleton
+│   ├── login.css            Tela de login
+│   ├── invoices.css         Upload, cloud-toolbar, stat-card, gráficos, tabelas, parcelas
+│   ├── budget.css           Orçamento por categoria (.budget-*)
+│   ├── month.css            Meu mês, contas fixas, receitas, avulsos e previsão
+│   ├── history.css          Histórico do cartão e do mês
+│   ├── responsive.css       Todas as @media (1000 → 900 → 760 → 520 → 480 → 420)
+│   └── theme-dark.css       Todas as regras html[data-theme="dark"]
 │
 ├── firebase/
 │   ├── app.ts               initializeApp + Auth (carregado já no login)
@@ -237,12 +243,13 @@ Coleções novas dentro de `users/{uid}` já são cobertas por essas regras.
 
 ## 8. Pontos conhecidos e dívidas técnicas
 
-- **`App.css` cresceu por blocos acrescentados ao final** (V3, V3.1, V3.3, V4, V4.0.1, V4.1–V4.3). Há regras que se sobrepõem. Candidato a reorganização, sem mudar o visual.
+- **CSS organizado por funcionalidade** em `src/styles/` (V4.3.1). A ordem dos arquivos é a ordem da cascata; `responsive.css` concentra todas as `@media` e `theme-dark.css` todas as regras do tema escuro. A reorganização foi validada comparando o vencedor de cada seletor/propriedade em várias larguras antes e depois: o resultado efetivo da cascata não mudou.
 - **`Dashboard.tsx` está grande** (~890 linhas). Candidato a dividir em hooks (`useInvoices`, `useFinance`) e componentes por aba, sem mudar comportamento.
 - **Modo escuro** mexe em muitas cores. Podem existir pontos ainda claros demais.
 - Algumas **regras de categoria antigas** foram gravadas com acento quebrado (chave com "cra dito"). Podem ser excluídas pelo painel de regras.
 - O aviso de chunk acima de 500 kB vem do Firestore no `Dashboard` (565 kB) e do Recharts no `CategoricalChart` (305 kB).
-- **Classes usadas no JSX sem regra no CSS:** `cashflow-table`, `chart-panel`, `table-panel`, `history-chart`, `history-categories`, `history-recurring`, `muted-zero` e `slate`. Não quebram o build; `cashflow-table` ainda herda as regras genéricas de `table/th/td`. Em especial, `slate` deixa o card "Lançamentos" (`SummaryCards.tsx`) sem cor — o mesmo tom é usado em "Maior fatura" (`HistoryView.tsx`).
+- **Classes usadas no JSX sem regra no CSS:** `cashflow-table`, `chart-panel`, `table-panel`, `history-chart`, `history-categories`, `history-recurring` e `muted-zero`. Não quebram o build; `cashflow-table` ainda herda as regras genéricas de `table/th/td`.
+- **`slate` agora tem regra:** `.stat-card.slate .stat-top` (`#475569`) em `invoices.css` e a equivalente `#94a3b8` em `theme-dark.css`. Antes o card "Lançamentos" (`SummaryCards.tsx`) e "Maior fatura" (`HistoryView.tsx`) ficavam sem cor.
 - Não há testes automatizados. Os cálculos de `monthPlan.ts`, `ofxParser.ts` e a duplicidade são bons candidatos a testes unitários (Vitest).
 
 ---
@@ -250,7 +257,7 @@ Coleções novas dentro de `users/{uid}` já são cobertas por essas regras.
 ## 9. Próximos passos sugeridos
 
 1. Validar a V4.3 no computador e no celular (modo escuro, navegação inferior, gastos avulsos, previsão).
-2. Reorganizar o `App.css` e dividir o `Dashboard.tsx`, sem mudar comportamento.
+2. Dividir o `Dashboard.tsx` em hooks e componentes por aba, sem mudar comportamento.
 3. Testes unitários dos cálculos.
 4. **V5:** metas de economia e alertas automáticos (categoria acima da média, conta subindo, vencimentos próximos).
 5. Depois: vários cartões, exportação para Excel, notificações de vencimento.

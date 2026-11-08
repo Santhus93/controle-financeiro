@@ -1,0 +1,252 @@
+/* Avisos (toast), dialogos e esqueleto de carregamento */
+
+.spin {
+  animation: auth-spin .75s linear infinite;
+}
+
+/* ---------- Avisos (toast) ---------- */
+.toast-stack {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: min(420px,calc(100vw - 32px));
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 14px;
+  border-radius: 13px;
+  background: #1f1830;
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.45;
+  box-shadow: 0 14px 34px rgba(0,0,0,.25);
+  animation: toast-in .22s ease-out;
+}
+
+.toast>svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+.toast span {
+  flex: 1;
+}
+
+.toast.success>svg {
+  color: #4ade80;
+}
+
+.toast.error {
+  background: #7f1d1d;
+}
+
+.toast.error>svg {
+  color: #fecaca;
+}
+
+.toast.info>svg {
+  color: #a78bfa;
+}
+
+.toast button {
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: rgba(255,255,255,.7);
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- Janela de confirmação ---------- */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15,8,25,.55);
+  backdrop-filter: blur(3px);
+  animation: fade-in .15s ease-out;
+}
+
+.dialog {
+  width: min(100%,420px);
+  background: var(--panel);
+  color: var(--ink);
+  border-radius: 20px;
+  padding: 26px;
+  box-shadow: 0 30px 70px rgba(0,0,0,.3);
+  animation: dialog-in .18s ease-out;
+}
+
+.dialog-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: #f0e9fb;
+  color: var(--purple);
+  margin-bottom: 14px;
+}
+
+.dialog-icon.danger {
+  background: #fff1f0;
+  color: #b42318;
+}
+
+.dialog h2 {
+  font: 800 19px Manrope;
+  margin: 0 0 8px;
+}
+
+.dialog p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.dialog-actions button {
+  border-radius: 11px;
+  padding: 11px 16px;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.dialog-cancel {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+}
+
+.dialog-confirm {
+  border: 0;
+  background: var(--purple);
+  color: #fff;
+}
+
+.dialog-confirm.danger {
+  background: #dc2626;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- Esqueleto de carregamento ---------- */
+.skeleton-grid {
+  margin: 0 0 18px;
+}
+
+.skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skeleton-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.skeleton-line {
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(90deg,#efe9f6 25%,#f8f5fc 50%,#efe9f6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.3s infinite linear;
+  height: 10px;
+}
+
+.skeleton-line.short {
+  width: 30%;
+}
+
+.skeleton-line.medium {
+  width: 55%;
+}
+
+.skeleton-line.tall {
+  height: 22px;
+  width: 70%;
+}
+
+.skeleton-line.title {
+  height: 18px;
+  width: 45%;
+  margin-bottom: 6px;
+}
+
+.skeleton-row {
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(90deg,#efe9f6 25%,#f8f5fc 50%,#efe9f6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.3s infinite linear;
+  height: 44px;
+}
+
+.skeleton-block {
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(90deg,#efe9f6 25%,#f8f5fc 50%,#efe9f6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.3s infinite linear;
+  height: 240px;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}

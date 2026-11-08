@@ -1,0 +1,505 @@
+/* Media queries agrupadas por breakpoint (1000, 900, 760, 520, 480, 420) */
+
+@media (max-width: 1000px) {
+  .summary-grid {
+    grid-template-columns: repeat(3,1fr);
+  }
+
+  .installment-grid {
+    grid-template-columns: repeat(2,1fr);
+  }
+
+  .merchant-detail {
+    position: static;
+  }
+
+  .charts-grid {
+    grid-template-columns: minmax(0,1fr);
+  }
+
+  .merchants-layout {
+    grid-template-columns: minmax(0,1fr);
+  }
+
+  .installments-layout {
+    grid-template-columns: minmax(0,1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .login-page {
+    grid-template-columns: 1fr;
+  }
+
+  .login-brand-panel {
+    min-height: auto;
+    padding: 42px 28px;
+  }
+
+  .login-brand-content h1 {
+    font-size: clamp(2.4rem,10vw,4rem);
+  }
+
+  .login-brand-content>p {
+    font-size: 15px;
+  }
+
+  .login-security-note {
+    margin-top: 24px;
+  }
+
+  .login-form-panel {
+    padding: 30px 18px;
+  }
+
+  .login-card {
+    padding: 29px;
+  }
+
+  .user-session span {
+    display: none;
+  }
+
+  .budget-form-grid {
+    grid-template-columns: repeat(2,1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .hero-inner {
+    grid-template-columns: 1fr;
+  }
+
+  .reference-box {
+    display: none;
+  }
+
+  .container-app {
+    padding: 0 14px 40px;
+  }
+
+  .upload-copy {
+    min-width: calc(100% - 70px);
+  }
+
+  .button-primary {
+    width: 100%;
+  }
+
+  .summary-grid {
+    grid-template-columns: repeat(2,1fr);
+  }
+
+  .filters {
+    grid-template-columns: 1fr;
+  }
+
+  .installment-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .welcome-state {
+    grid-template-columns: 1fr;
+  }
+
+  .welcome-number {
+    display: none;
+  }
+
+  .cloud-toolbar-actions {
+    width: 100%;
+  }
+
+  .cloud-toolbar-actions label {
+    flex: 1;
+  }
+
+  .cloud-toolbar-actions select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .uncat-panel .panel-heading {
+    flex-direction: column;
+  }
+
+  .uncat-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .uncat-row .category-select {
+    grid-column: 1 / -1;
+  }
+
+  .rules-heading {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .view-tabs button {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .budget-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .budget-empty {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .budget-empty .button-primary {
+    width: 100%;
+  }
+
+  .budget-field-main {
+    max-width: none;
+  }
+
+  /* V3.1 - Celular */
+  /* Cabeçalho compacto */
+  .hero {
+    padding: 22px 16px 62px;
+  }
+
+  .hero h1 {
+    font-size: 1.7rem;
+    margin: 14px 0 6px;
+    letter-spacing: -.03em;
+  }
+
+  .hero p {
+    display: none;
+  }
+
+  .brand-pill {
+    font-size: 9px;
+    padding: 5px 9px;
+  }
+
+  /* Barra de faturas e upload mais enxutos */
+  .cloud-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 13px 14px;
+  }
+
+  .drop-zone {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .upload-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .privacy-note {
+    padding: 0 16px 14px;
+    font-size: 11px;
+    align-items: flex-start;
+  }
+
+  /* Cards de resumo: valores menores */
+  .stat-card {
+    padding: 14px;
+  }
+
+  .stat-card strong {
+    font-size: 19px;
+    margin: 10px 0 3px;
+  }
+
+  /* Lançamentos em formato de cartão */
+  .transactions-table thead {
+    display: none;
+  }
+
+  .transactions-table,
+  .transactions-table tbody {
+    display: block;
+  }
+
+  .transactions-table tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px 10px;
+    padding: 12px 2px;
+    border-bottom: 1px solid #f0ebf3;
+  }
+
+  .transactions-table td {
+    border: 0;
+    padding: 0;
+  }
+
+  .transactions-table .cell-title {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .transactions-table .cell-title .merchant {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .transactions-table .cell-amount {
+    grid-column: 2;
+    grid-row: 1;
+    font-size: 14px;
+  }
+
+  .transactions-table .cell-date {
+    grid-column: 1;
+    grid-row: 2;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .transactions-table .cell-type {
+    grid-column: 2;
+    grid-row: 2;
+    text-align: right;
+  }
+
+  .transactions-table .cell-category {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+
+  .transactions-table .category-select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .transactions-table .empty-table {
+    display: block;
+  }
+
+  .table-scroll {
+    overflow: visible;
+  }
+
+  .chart-layout {
+    grid-template-columns: minmax(0,1fr);
+  }
+
+  .budget-grid {
+    grid-template-columns: minmax(0,1fr);
+  }
+
+  .recurring-grid {
+    grid-template-columns: minmax(0,1fr);
+  }
+
+  .installments-layout .installment-grid {
+    grid-template-columns: minmax(0,1fr);
+  }
+
+  .merchant-row {
+    padding: 9px 6px;
+    gap: 9px;
+  }
+
+  .merchant-info small {
+    font-size: 11px;
+  }
+
+  .month-welcome {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .month-welcome .button-primary {
+    width: 100%;
+  }
+
+  .due-row {
+    grid-template-columns: 34px minmax(0,1fr) auto;
+    gap: 8px 10px;
+  }
+
+  .due-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .due-row>.due-action,
+  .due-row>.due-pay-form {
+    grid-column: 2 / -1;
+    justify-self: end;
+  }
+
+  .finance-grid {
+    grid-template-columns: minmax(0,1fr);
+  }
+
+  .finance-grid .wide {
+    grid-column: auto;
+  }
+
+  .finance-row {
+    grid-template-columns: 42px minmax(0,1fr) auto;
+    gap: 8px 10px;
+  }
+
+  .finance-day {
+    width: 42px;
+    height: 42px;
+  }
+
+  .finance-actions {
+    grid-column: 2 / -1;
+    justify-self: end;
+  }
+
+  .panel-heading .button-primary.small {
+    padding: 8px 11px;
+  }
+
+  /* ---------- Celular: navegação inferior ---------- */
+  .month-kpis {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+  }
+
+  .month-kpis .stat-card:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .app-shell {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+
+  .view-tabs.four {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 60;
+    margin: 0;
+    border-radius: 18px 18px 0 0;
+    border-width: 1px 0 0;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    background: var(--panel);
+    box-shadow: 0 -8px 24px rgba(43,25,66,.12);
+  }
+
+  /* Abas fixas no topo ao rolar */
+  .view-tabs {
+    display: flex;
+    position: fixed;
+    top: auto;
+    z-index: 60;
+    box-shadow: 0 -8px 24px rgba(43,25,66,.12);
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: 0;
+    border-radius: 18px 18px 0 0;
+    border-width: 1px 0 0;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    background: var(--panel);
+  }
+
+  .view-tabs.four button {
+    padding: 7px 2px;
+    font-size: 11px;
+    gap: 3px;
+    flex-direction: column;
+    border-radius: 12px;
+  }
+
+  .view-tabs.four button svg {
+    display: block !important;
+  }
+
+  .toast-stack {
+    left: 16px;
+    right: 16px;
+    bottom: calc(86px + env(safe-area-inset-bottom));
+    max-width: none;
+  }
+
+  .saving-indicator {
+    top: auto;
+    bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+
+  .dialog-overlay {
+    align-items: end;
+    padding: 0;
+  }
+
+  .dialog {
+    width: 100%;
+    border-radius: 22px 22px 0 0;
+    padding: 24px 20px calc(20px + env(safe-area-inset-bottom));
+  }
+
+  .dialog-actions button {
+    flex: 1;
+  }
+
+  .skeleton-grid {
+    grid-template-columns: repeat(2,minmax(0,1fr)) !important;
+  }
+
+  .forecast-panel .panel-heading {
+    flex-direction: row;
+  }
+}
+
+@media (max-width: 520px) {
+  .login-brand-panel {
+    padding: 30px 21px;
+  }
+
+  .login-brand-content h1 {
+    font-size: 2.55rem;
+  }
+
+  .login-form-panel {
+    padding: 18px 12px;
+  }
+
+  .login-card {
+    padding: 24px 20px;
+    border-radius: 17px;
+  }
+
+  .user-session button {
+    padding: 6px 8px;
+  }
+
+  .cloud-toolbar-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .delete-invoice-button {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel {
+    padding: 17px;
+  }
+}
+
+@media (max-width: 420px) {
+  .view-tabs.four button svg {
+    display: none;
+  }
+}
