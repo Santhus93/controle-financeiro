@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   ArrowDownCircle,
   ArrowUpCircle,
@@ -9,22 +9,27 @@ import {
   CreditCard,
   PiggyBank,
   Receipt,
+  TrendingUp,
   Undo2,
+  Wallet,
 } from 'lucide-react'
-import type { Bill, BillPayment, Income } from '../types/Finance'
+import type { Bill, BillPayment, Expense, Income } from '../types/Finance'
 import type { InvoiceSummary } from '../types/Invoice'
 import { formatCurrency } from '../utils/currency'
 import { addMonths, formatDueDate, formatMonthLabel } from '../utils/invoiceReference'
 import {
   billsForMonth,
   billStatus,
+  computeMonthSummary,
   dueDateIn,
   formatDayMonth,
   incomesForMonth,
+  invoiceNet,
   parseMoneyInput,
   paymentsByBill,
   toMoneyInput,
   type BillStatus,
+  type Forecast,
 } from '../utils/monthPlan'
 
 interface MonthOverviewProps {
@@ -34,11 +39,15 @@ interface MonthOverviewProps {
   bills: Bill[]
   payments: BillPayment[]
   incomes: Income[]
+  expenses: Expense[]
+  forecast: Forecast | null
   saving: boolean
   onPay: (bill: Bill, amount: number) => void
   onUnpay: (bill: Bill) => void
   onOpenInvoice: (invoiceId: string) => void
   onManage: () => void
+  /** Conteúdo extra exibido depois dos vencimentos (gastos avulsos). */
+  children?: ReactNode
 }
 
 const STATUS_LABEL: Record<BillStatus, string> = {
@@ -48,6 +57,76 @@ const STATUS_LABEL: Record<BillStatus, string> = {
   pending: 'A vencer',
 }
 
+function ForecastPanel({ forecast }: { forecast: Forecast | null }) {
+  if (!forecast) {
+    return (
+      <section className="panel forecast-panel">
+        <span className="skeleton-line short" />
+        <span className="skeleton-line title" />
+        <span className="skeleton-row" />
+        <span className="skeleton-row" />
+      </section>
+    )
+  }
+
+  const positive = forecast.leftover >= 0
+
+  return (
+    <section className={`panel forecast-panel ${positive ? 'positive' : 'negative'}`}>
+      <div className="panel-heading">
+        <div>
+          <span className="eyebrow">Previsão</span>
+          <h2>{formatMonthLabel(forecast.month)}</h2>
+        </div>
+        <div className="forecast-result">
+          <span>Sobra estimada</span>
+          <strong>{formatCurrency(forecast.leftover)}</strong>
+        </div>
+      </div>
+
+      <div className="forecast-lines">
+        <div className="forecast-line">
+          <span><ArrowUpCircle size={15} /> Receitas</span>
+          <strong className="positive">{formatCurrency(forecast.income)}</strong>
+        </div>
+        <div className="forecast-line">
+          <span>
+            <CreditCard size={15} /> Cartão
+            <small>
+              {forecast.cardIsActual
+                ? 'fatura já importada'
+                : `${formatCurrency(forecast.installments)} em parcelas + média à vista de ${forecast.averageBase} fatura(s)`}
+            </small>
+          </span>
+          <strong>− {formatCurrency(forecast.card)}</strong>
+        </div>
+        <div className="forecast-line">
+          <span><Receipt size={15} /> Contas fixas</span>
+          <strong>− {formatCurrency(forecast.bills)}</strong>
+        </div>
+        <div className="forecast-line">
+          <span>
+            <Wallet size={15} /> Gastos avulsos
+            {forecast.expensesFromAverage && <small>média dos últimos 3 meses</small>}
+          </span>
+          <strong>− {formatCurrency(forecast.expenses)}</strong>
+        </div>
+      </div>
+
+      <div className={`forecast-verdict ${positive ? 'positive' : 'negative'}`}>
+        <TrendingUp size={16} />
+        <span>
+          {!forecast.income
+            ? 'Cadastre suas receitas para saber se o mês vai fechar no positivo.'
+            : positive
+              ? 'Pelo que já está previsto, o mês deve fechar no positivo.'
+              : 'Atenção: pelo que já está previsto, as saídas devem passar das receitas.'}
+        </span>
+      </div>
+    </section>
+  )
+}
+
 export function MonthOverview({
   month,
   onMonthChange,
@@ -55,31 +134,23 @@ export function MonthOverview({
   bills,
   payments,
   incomes,
+  expenses,
+  forecast,
   saving,
   onPay,
   onUnpay,
   onOpenInvoice,
   onManage,
+  children,
 }: MonthOverviewProps) {
   const [payingId, setPayingId] = useState('')
   const [payValue, setPayValue] = useState('')
 
+  const summary = computeMonthSummary(month, { invoices, bills, payments, incomes, expenses })
   const monthBills = billsForMonth(bills, month)
   const paid = paymentsByBill(payments, month)
   const monthIncomes = incomesForMonth(incomes, month)
   const monthInvoices = invoices.filter((invoice) => invoice.referenceMonth === month)
-
-  const incomeTotal = monthIncomes.reduce((sum, income) => sum + income.amount, 0)
-  const cardTotal = monthInvoices.reduce(
-    (sum, invoice) => sum + invoice.totalExpenses - invoice.totalRefunds,
-    0,
-  )
-  const billsPlanned = monthBills.reduce((sum, bill) => sum + (paid.get(bill.id)?.amount ?? bill.amount), 0)
-  const billsPaidCount = monthBills.filter((bill) => paid.has(bill.id)).length
-  const billsPaidTotal = monthBills.reduce((sum, bill) => sum + (paid.get(bill.id)?.amount ?? 0), 0)
-  const expensesTotal = cardTotal + billsPlanned
-  const leftover = incomeTotal - expensesTotal
-  const committed = incomeTotal ? (expensesTotal / incomeTotal) * 100 : null
 
   const startPaying = (bill: Bill) => {
     if (!bill.variable) {
@@ -97,7 +168,8 @@ export function MonthOverview({
     setPayingId('')
   }
 
-  const nothingConfigured = !bills.length && !incomes.length
+  const nothingConfigured = !bills.length && !incomes.length && !expenses.length
+  const committed = summary.committed
 
   return (
     <div className="month-view">
@@ -133,23 +205,28 @@ export function MonthOverview({
       <section className="summary-grid month-kpis">
         <article className="stat-card green">
           <div className="stat-top"><span>Receitas</span><ArrowUpCircle size={18} /></div>
-          <strong>{formatCurrency(incomeTotal)}</strong>
-          <small>{monthIncomes.length} entrada(s)</small>
+          <strong>{formatCurrency(summary.income)}</strong>
+          <small>{summary.incomeCount} entrada(s)</small>
         </article>
         <article className="stat-card purple">
           <div className="stat-top"><span>Cartão</span><CreditCard size={18} /></div>
-          <strong>{formatCurrency(cardTotal)}</strong>
-          <small>{monthInvoices.length ? 'Fatura que vence no mês' : 'Nenhuma fatura neste mês'}</small>
+          <strong>{formatCurrency(summary.card)}</strong>
+          <small>{summary.cardCount ? 'Fatura que vence no mês' : 'Nenhuma fatura neste mês'}</small>
         </article>
         <article className="stat-card orange">
           <div className="stat-top"><span>Contas fixas</span><Receipt size={18} /></div>
-          <strong>{formatCurrency(billsPlanned)}</strong>
-          <small>{billsPaidCount} de {monthBills.length} paga(s) · {formatCurrency(billsPaidTotal)}</small>
+          <strong>{formatCurrency(summary.bills)}</strong>
+          <small>{summary.billsPaidCount} de {summary.billsCount} paga(s)</small>
         </article>
-        <article className={`stat-card ${leftover >= 0 ? 'blue' : 'danger'}`}>
-          <div className="stat-top"><span>Sobra prevista</span><PiggyBank size={18} /></div>
-          <strong>{formatCurrency(leftover)}</strong>
-          <small>Receitas − cartão − contas</small>
+        <article className="stat-card pink">
+          <div className="stat-top"><span>Avulsos</span><Wallet size={18} /></div>
+          <strong>{formatCurrency(summary.expenses)}</strong>
+          <small>{summary.expensesCount} gasto(s) fora do cartão</small>
+        </article>
+        <article className={`stat-card ${summary.leftover >= 0 ? 'blue' : 'danger'}`}>
+          <div className="stat-top"><span>Sobra</span><PiggyBank size={18} /></div>
+          <strong>{formatCurrency(summary.leftover)}</strong>
+          <small>Receitas − todas as saídas</small>
         </article>
       </section>
 
@@ -159,18 +236,21 @@ export function MonthOverview({
             <strong>Renda comprometida</strong>
             <span>
               {committed.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}%{' '}
-              <small>de {formatCurrency(incomeTotal)}</small>
+              <small>de {formatCurrency(summary.income)}</small>
             </span>
           </div>
           <div className={`budget-row ${committed > 100 ? 'over' : committed >= 80 ? 'warning' : 'ok'}`}>
             <div className="budget-bar"><span style={{ width: `${Math.min(committed, 100)}%` }} /></div>
           </div>
           <div className="commitment-split">
-            <span><i className="dot card" /> Cartão {formatCurrency(cardTotal)}</span>
-            <span><i className="dot bills" /> Contas {formatCurrency(billsPlanned)}</span>
+            <span><i className="dot card" /> Cartão {formatCurrency(summary.card)}</span>
+            <span><i className="dot bills" /> Contas {formatCurrency(summary.bills)}</span>
+            <span><i className="dot expenses" /> Avulsos {formatCurrency(summary.expenses)}</span>
           </div>
         </section>
       )}
+
+      <ForecastPanel forecast={forecast} />
 
       <section className="panel">
         <div className="panel-heading">
@@ -193,7 +273,7 @@ export function MonthOverview({
                   <strong>Fatura {invoice.card}</strong>
                   <span>{due ? `Vence ${due.slice(0, 5)}` : 'Cartão de crédito'} · {invoice.fileName}</span>
                 </div>
-                <div className="due-amount">{formatCurrency(invoice.totalExpenses - invoice.totalRefunds)}</div>
+                <div className="due-amount">{formatCurrency(invoiceNet(invoice))}</div>
                 <button type="button" className="due-action ghost" onClick={() => onOpenInvoice(invoice.id)}>
                   Ver fatura
                 </button>
@@ -252,6 +332,8 @@ export function MonthOverview({
           )}
         </div>
       </section>
+
+      {children}
 
       {monthIncomes.length > 0 && (
         <section className="panel">

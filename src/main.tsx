@@ -3,12 +3,18 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
+import { applyTheme, getInitialTheme, UiProvider } from './contexts/UiContext'
+
+// Aplica o tema antes da primeira pintura, para não piscar em claro no modo escuro.
+applyTheme(getInitialTheme())
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
+    <UiProvider>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </UiProvider>
   </StrictMode>,
 )
 

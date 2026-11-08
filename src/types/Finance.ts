@@ -1,6 +1,8 @@
+import type { TransactionCategory } from './Transaction'
+
 /**
- * Contas fixas e receitas.
- * Regra do app: conta fixa é tudo o que NÃO passa pelo cartão de crédito.
+ * Contas fixas, receitas e gastos avulsos.
+ * Regra do app: tudo aqui é o que NÃO passa pelo cartão de crédito.
  * O que é pago no cartão aparece só na fatura, para não contar duas vezes.
  */
 export const BILL_CATEGORIES = [
@@ -53,5 +55,22 @@ export interface Income {
   day: number
 }
 
+/** Formas de pagamento fora do cartão de crédito. */
+export const PAYMENT_METHODS = ['Pix', 'Débito', 'Dinheiro', 'Boleto'] as const
+
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number]
+
+/** Gasto pontual fora do cartão (Pix, débito, dinheiro, boleto avulso). */
+export interface Expense {
+  id: string
+  description: string
+  amount: number
+  /** AAAA-MM-DD */
+  date: string
+  category: TransactionCategory
+  method: PaymentMethod
+}
+
 export type NewBill = Omit<Bill, 'id'> & { id?: string }
 export type NewIncome = Omit<Income, 'id'> & { id?: string }
+export type NewExpense = Omit<Expense, 'id'> & { id?: string }

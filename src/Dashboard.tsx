@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import {
   BarChart3,
   CalendarDays,
@@ -6,23 +6,25 @@ import {
   CreditCard,
   LoaderCircle,
   LogOut,
+  Moon,
   Receipt,
+  Sun,
   Trash2,
 } from 'lucide-react'
 import { BillsManager } from './components/BillsManager'
 import { BudgetPanel } from './components/BudgetPanel'
-import { CategoryChart } from './components/CategoryChart'
 import { CategoryRules } from './components/CategoryRules'
+import { ExpensesPanel } from './components/ExpensesPanel'
 import { FileUpload } from './components/FileUpload'
-import { HistoryView } from './components/HistoryView'
 import { Installments } from './components/Installments'
 import { MonthOverview } from './components/MonthOverview'
-import { SpendingChart } from './components/SpendingChart'
+import { SkeletonCards, SkeletonPanel } from './components/Skeleton'
 import { SummaryCards } from './components/SummaryCards'
 import { TopMerchants } from './components/TopMerchants'
 import { TransactionsTable } from './components/TransactionsTable'
 import { UncategorizedPanel } from './components/UncategorizedPanel'
 import { useAuth } from './contexts/AuthContext'
+import { useUi } from './contexts/UiContext'
 import { EMPTY_BUDGET, loadBudget, saveBudget, type Budget } from './services/budgetService'
 import {
   clearLegacyLocalRules,
@@ -41,12 +43,15 @@ import {
 } from './services/categoryRulesService'
 import {
   deleteBill,
+  deleteExpense,
   deleteIncome,
   listBillPayments,
   listBills,
+  listExpenses,
   listIncomes,
   markBillPaid,
   saveBill,
+  saveExpense,
   saveIncome,
   unmarkBillPaid,
 } from './services/financeService'
@@ -60,11 +65,34 @@ import {
   saveInvoice,
   updateTransactionsCategory,
 } from './services/firestoreService'
-import type { Bill, BillPayment, Income, NewBill, NewIncome } from './types/Finance'
+import type {
+  Bill,
+  BillPayment,
+  Expense,
+  Income,
+  NewBill,
+  NewExpense,
+  NewIncome,
+} from './types/Finance'
 import type { InvoiceSummary, SavedInvoice } from './types/Invoice'
 import type { Transaction, TransactionCategory } from './types/Transaction'
-import { formatDueDate, formatMonthLabel } from './utils/invoiceReference'
-import { currentMonth } from './utils/monthPlan'
+import { addMonths, formatDueDate, formatMonthLabel } from './utils/invoiceReference'
+import { computeForecast, currentMonth } from './utils/monthPlan'
+import packageJson from '../package.json'
+
+// Componentes com gráficos (Recharts) só são baixados quando aparecem na tela.
+const CategoryChart = lazy(() =>
+  import('./components/CategoryChart').then((module) => ({ default: module.CategoryChart })),
+)
+const SpendingChart = lazy(() =>
+  import('./components/SpendingChart').then((module) => ({ default: module.SpendingChart })),
+)
+const HistoryView = lazy(() =>
+  import('./components/HistoryView').then((module) => ({ default: module.HistoryView })),
+)
+const CashflowHistory = lazy(() =>
+  import('./components/CashflowHistory').then((module) => ({ default: module.CashflowHistory })),
+)
 
 type View = 'month' | 'invoice' | 'bills' | 'history'
 
@@ -72,46 +100,58 @@ function formatReferenceMonth(referenceMonth: string): string {
   return formatMonthLabel(referenceMonth)
 }
 
-function getFirestoreErrorMessage(cause: unknown): string {
+function getErrorMessage(cause: unknown): string {
   if (cause instanceof Error) return cause.message
   return 'Ocorreu uma falha ao acessar os dados na nuvem.'
 }
 
 /**
  * Painel principal (área logada).
- * Carregado sob demanda pelo App.tsx depois do login, junto com o Firestore e os gráficos.
+ * Carregado sob demanda pelo App.tsx depois do login, junto com o Firestore.
  */
 export default function Dashboard() {
   const { user, logout } = useAuth()
+  const { toast, confirm, theme, toggleTheme } = useUi()
+
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([])
   const [rules, setRules] = useState<CategoryRule[]>([])
   const [selectedInvoiceId, setSelectedInvoiceId] = useState('')
   const [fileName, setFileName] = useState('')
   const [loading, setLoading] = useState(false)
-  const [cloudLoading, setCloudLoading] = useState(false)
+  const [cloudLoading, setCloudLoading] = useState(true)
+  const [invoiceLoading, setInvoiceLoading] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [savingRule, setSavingRule] = useState(false)
   const [error, setError] = useState('')
-  const [cloudMessage, setCloudMessage] = useState('')
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
   const [view, setView] = useState<View>('month')
-  const [history, setHistory] = useState<SavedInvoice[] | null>(null)
-  const [historyLoading, setHistoryLoading] = useState(false)
+  const [allInvoices, setAllInvoices] = useState<SavedInvoice[] | null>(null)
   const [budget, setBudget] = useState<Budget>(EMPTY_BUDGET)
   const [savingBudget, setSavingBudget] = useState(false)
   const [month, setMonth] = useState(currentMonth())
   const [bills, setBills] = useState<Bill[]>([])
   const [payments, setPayments] = useState<BillPayment[]>([])
   const [incomes, setIncomes] = useState<Income[]>([])
+  const [expenses, setExpenses] = useState<Expense[]>([])
   const [savingFinance, setSavingFinance] = useState(false)
 
   const ruleMap = useMemo(() => rulesToMap(rules), [rules])
   const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId)
   const invoiceMonth = selectedInvoice?.referenceMonth ?? ''
   const dueDateLabel = formatDueDate(fileName)
+
+  const financeData = useMemo(
+    () => ({ invoices, bills, payments, incomes, expenses }),
+    [invoices, bills, payments, incomes, expenses],
+  )
+
+  const forecast = useMemo(
+    () => (allInvoices ? computeForecast(addMonths(month, 1), financeData, allInvoices) : null),
+    [allInvoices, financeData, month],
+  )
 
   const categories = useMemo(
     () => [...new Set(transactions.map((item) => item.category))].sort(),
@@ -132,32 +172,33 @@ export default function Dashboard() {
     [transactions, search, categoryFilter, typeFilter],
   )
 
-  // Qualquer alteração em faturas ou categorias invalida o histórico carregado.
+  const notifyError = (cause: unknown) => toast(getErrorMessage(cause), 'error')
+
+  // Faturas completas (com lançamentos): usadas na previsão e no histórico.
+  // Qualquer alteração em faturas ou categorias invalida a cópia carregada.
   useEffect(() => {
-    setHistory(null)
+    setAllInvoices(null)
   }, [invoices, transactions])
 
   useEffect(() => {
-    if (!user || view !== 'history' || history !== null) return
+    if (!user || cloudLoading || allInvoices !== null) return
+    if (view !== 'month' && view !== 'history') return
 
     let cancelled = false
-    setHistoryLoading(true)
 
     loadAllInvoices(user.uid)
       .then((data) => {
-        if (!cancelled) setHistory(data)
+        if (!cancelled) setAllInvoices(data)
       })
       .catch((cause) => {
-        if (!cancelled) setError(getFirestoreErrorMessage(cause))
-      })
-      .finally(() => {
-        if (!cancelled) setHistoryLoading(false)
+        if (!cancelled) notifyError(cause)
       })
 
     return () => {
       cancelled = true
     }
-  }, [user, view, history])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, view, allInvoices, cloudLoading])
 
   const resetFilters = () => {
     setSearch('')
@@ -177,25 +218,12 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    if (!user) {
-      setInvoices([])
-      setRules([])
-      setBudget(EMPTY_BUDGET)
-      setBills([])
-      setPayments([])
-      setIncomes([])
-      setTransactions([])
-      setSelectedInvoiceId('')
-      setFileName('')
-      return
-    }
+    if (!user) return
 
     let cancelled = false
 
     const loadInitialData = async () => {
       setCloudLoading(true)
-      setError('')
-      setCloudMessage('Carregando seus dados...')
 
       try {
         let foundRules = await listCategoryRules(user.uid)
@@ -208,40 +236,32 @@ export default function Dashboard() {
           if (imported > 0) foundRules = await listCategoryRules(user.uid)
         }
 
+        const [foundBudget, foundBills, foundPayments, foundIncomes, foundExpenses, foundInvoices] =
+          await Promise.all([
+            loadBudget(user.uid),
+            listBills(user.uid),
+            listBillPayments(user.uid),
+            listIncomes(user.uid),
+            listExpenses(user.uid),
+            listInvoices(user.uid),
+          ])
         if (cancelled) return
+
         setRules(foundRules)
-
-        const [foundBudget, foundBills, foundPayments, foundIncomes, foundInvoices] = await Promise.all([
-          loadBudget(user.uid),
-          listBills(user.uid),
-          listBillPayments(user.uid),
-          listIncomes(user.uid),
-          listInvoices(user.uid),
-        ])
-        if (cancelled) return
-
         setBudget(foundBudget)
         setBills(foundBills)
         setPayments(foundPayments)
         setIncomes(foundIncomes)
+        setExpenses(foundExpenses)
         setInvoices(foundInvoices)
 
         if (foundInvoices.length > 0) {
           const latestInvoice = await loadInvoice(user.uid, foundInvoices[0].id)
           if (cancelled) return
-
-          applyLoadedInvoice(
-            latestInvoice.id,
-            latestInvoice.fileName,
-            latestInvoice.transactions,
-          )
+          applyLoadedInvoice(latestInvoice.id, latestInvoice.fileName, latestInvoice.transactions)
         }
-        setCloudMessage('')
       } catch (cause) {
-        if (!cancelled) {
-          setError(getFirestoreErrorMessage(cause))
-          setCloudMessage('')
-        }
+        if (!cancelled) notifyError(cause)
       } finally {
         if (!cancelled) setCloudLoading(false)
       }
@@ -252,14 +272,16 @@ export default function Dashboard() {
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
+
+  // ---------- Cartão ----------
 
   const handleFile = async (file: File) => {
     if (!user) return
 
     setLoading(true)
     setError('')
-    setCloudMessage('Lendo e salvando a fatura...')
 
     try {
       const statement = await importStatement(file)
@@ -276,16 +298,19 @@ export default function Dashboard() {
 
       if (equivalent && !equivalent.identical) {
         const label = `${formatReferenceMonth(equivalent.invoice.referenceMonth)} (${equivalent.invoice.fileName})`
-        const replace = window.confirm(
-          `A fatura de ${label} já está salva: ${equivalent.matched} de ${equivalent.total} lançamentos têm o mesmo valor.\n\n` +
-            `OK: substituir pela versão ${statement.format.toUpperCase()} (${file.name}).\n` +
-            'Cancelar: manter a fatura atual.',
-        )
+        const replace = await confirm({
+          title: 'Esta fatura já está salva',
+          message:
+            `A fatura de ${label} já existe: ${equivalent.matched} de ${equivalent.total} lançamentos têm o mesmo valor.\n\n` +
+            `Deseja substituí-la pela versão ${statement.format.toUpperCase()} (${file.name})?`,
+          confirmLabel: 'Substituir',
+          cancelLabel: 'Manter a atual',
+        })
 
         if (!replace) {
           const existing = await loadInvoice(user.uid, equivalent.invoice.id)
           applyLoadedInvoice(existing.id, existing.fileName, existing.transactions)
-          setCloudMessage(`Importação cancelada: a fatura de ${label} foi mantida.`)
+          toast(`Importação cancelada: a fatura de ${label} foi mantida.`, 'info')
           return
         }
 
@@ -297,21 +322,16 @@ export default function Dashboard() {
       const refreshedInvoices = await listInvoices(user.uid)
 
       setInvoices(refreshedInvoices)
-      applyLoadedInvoice(
-        result.invoice.id,
-        result.invoice.fileName,
-        result.invoice.transactions,
-      )
-      setCloudMessage(
+      applyLoadedInvoice(result.invoice.id, result.invoice.fileName, result.invoice.transactions)
+      toast(
         (result.alreadyExisted
           ? 'Esta fatura já estava salva. A versão existente foi carregada.'
-          : `Fatura ${statement.card} (${statement.format.toUpperCase()}) salva com ${categorized.length} lançamentos e as suas regras de categoria aplicadas.` +
-            replacedLabel) +
-          describeLedgerCheck(statement),
+          : `Fatura ${statement.card} (${statement.format.toUpperCase()}) salva com ${categorized.length} lançamentos.` +
+            replacedLabel) + describeLedgerCheck(statement),
+        result.alreadyExisted ? 'info' : 'success',
       )
     } catch (cause) {
-      setError(getFirestoreErrorMessage(cause))
-      setCloudMessage('')
+      setError(getErrorMessage(cause))
     } finally {
       setLoading(false)
     }
@@ -320,34 +340,31 @@ export default function Dashboard() {
   const handleInvoiceSelection = async (invoiceId: string) => {
     if (!user || !invoiceId || invoiceId === selectedInvoiceId) return
 
-    setCloudLoading(true)
-    setError('')
-    setCloudMessage('Carregando a fatura selecionada...')
+    setInvoiceLoading(true)
 
     try {
       const invoice = await loadInvoice(user.uid, invoiceId)
       applyLoadedInvoice(invoice.id, invoice.fileName, invoice.transactions)
-      setCloudMessage('Fatura carregada da nuvem.')
     } catch (cause) {
-      setError(getFirestoreErrorMessage(cause))
-      setCloudMessage('')
+      notifyError(cause)
     } finally {
-      setCloudLoading(false)
+      setInvoiceLoading(false)
     }
   }
 
   const handleDeleteInvoice = async () => {
     if (!user || !selectedInvoiceId) return
 
-    const label = selectedInvoice
-      ? formatReferenceMonth(selectedInvoice.referenceMonth)
-      : 'esta fatura'
-
-    if (!window.confirm(`Excluir ${label} e todos os seus lançamentos salvos?`)) return
+    const label = selectedInvoice ? formatReferenceMonth(selectedInvoice.referenceMonth) : 'esta fatura'
+    const ok = await confirm({
+      title: 'Excluir fatura',
+      message: `A fatura de ${label} e todos os lançamentos dela serão apagados. As regras de categoria são mantidas.`,
+      confirmLabel: 'Excluir',
+      danger: true,
+    })
+    if (!ok) return
 
     setDeleting(true)
-    setError('')
-    setCloudMessage('Excluindo a fatura...')
 
     try {
       await deleteInvoice(user.uid, selectedInvoiceId)
@@ -357,17 +374,15 @@ export default function Dashboard() {
       if (remainingInvoices.length > 0) {
         const nextInvoice = await loadInvoice(user.uid, remainingInvoices[0].id)
         applyLoadedInvoice(nextInvoice.id, nextInvoice.fileName, nextInvoice.transactions)
-        setCloudMessage('Fatura excluída. A fatura mais recente foi carregada.')
       } else {
         setSelectedInvoiceId('')
         setFileName('')
         setTransactions([])
         resetFilters()
-        setCloudMessage('Fatura excluída. Não há outras faturas salvas.')
       }
+      toast(`Fatura de ${label} excluída.`)
     } catch (cause) {
-      setError(getFirestoreErrorMessage(cause))
-      setCloudMessage('')
+      notifyError(cause)
     } finally {
       setDeleting(false)
     }
@@ -384,13 +399,10 @@ export default function Dashboard() {
     const affected = transactions.filter((item) => merchantKey(item.originalTitle) === key)
 
     setTransactions((current) =>
-      current.map((item) =>
-        merchantKey(item.originalTitle) === key ? { ...item, category } : item,
-      ),
+      current.map((item) => (merchantKey(item.originalTitle) === key ? { ...item, category } : item)),
     )
 
     setSavingRule(true)
-    setError('')
 
     try {
       const rule = await saveCategoryRule(user.uid, title, category)
@@ -405,11 +417,9 @@ export default function Dashboard() {
         )
       }
 
-      setCloudMessage(
-        `Regra salva: ${affected.length} lançamento(s) de "${affected[0]?.title ?? title}" agora em ${category}.`,
-      )
+      toast(`${affected.length} lançamento(s) de "${affected[0]?.title ?? title}" agora em ${category}.`)
     } catch (cause) {
-      setError(getFirestoreErrorMessage(cause))
+      notifyError(cause)
     } finally {
       setSavingRule(false)
     }
@@ -419,34 +429,105 @@ export default function Dashboard() {
     if (!user) return
 
     setSavingBudget(true)
-    setError('')
 
     try {
       const saved = await saveBudget(user.uid, next)
       setBudget(saved)
-      setCloudMessage('Orçamento salvo na sua conta.')
+      toast('Orçamento salvo.')
     } catch (cause) {
-      setError(getFirestoreErrorMessage(cause))
+      notifyError(cause)
     } finally {
       setSavingBudget(false)
     }
   }
 
-  // ---------- Contas fixas e receitas ----------
+  const handleCategoryChange = (id: string, category: TransactionCategory) => {
+    const transaction = transactions.find((item) => item.id === id)
+    if (transaction) void applyCategoryToMerchant(transaction.originalTitle, category)
+  }
 
-  /** Executa uma operação de contas/receitas com indicador de salvamento e tratamento de erro. */
+  const handleRuleChange = (rule: CategoryRule, category: TransactionCategory) => {
+    void applyCategoryToMerchant(rule.sampleTitle, category)
+  }
+
+  const handleDeleteRule = async (rule: CategoryRule) => {
+    if (!user) return
+
+    const ok = await confirm({
+      title: 'Excluir regra',
+      message: `A regra "${rule.sampleTitle}" → ${rule.category} será excluída. Os lançamentos já categorizados não mudam.`,
+      confirmLabel: 'Excluir',
+      danger: true,
+    })
+    if (!ok) return
+
+    setSavingRule(true)
+
+    try {
+      await deleteCategoryRule(user.uid, rule.id)
+      setRules((current) => current.filter((item) => item.id !== rule.id))
+      toast('Regra excluída.')
+    } catch (cause) {
+      notifyError(cause)
+    } finally {
+      setSavingRule(false)
+    }
+  }
+
+  const handleReapplyRules = async () => {
+    if (!user || !selectedInvoiceId) return
+
+    const changes = transactions
+      .map((item) => ({ item, ruleCategory: ruleMap[merchantKey(item.originalTitle)] }))
+      .filter(({ item, ruleCategory }) => ruleCategory && ruleCategory !== item.category)
+
+    if (!changes.length) {
+      toast('A fatura já está de acordo com as regras.', 'info')
+      return
+    }
+
+    setSavingRule(true)
+
+    try {
+      const byCategory = new Map<TransactionCategory, string[]>()
+      changes.forEach(({ item, ruleCategory }) => {
+        const ids = byCategory.get(ruleCategory) ?? []
+        ids.push(item.id)
+        byCategory.set(ruleCategory, ids)
+      })
+
+      for (const [category, ids] of byCategory) {
+        await updateTransactionsCategory(user.uid, selectedInvoiceId, ids, category)
+      }
+
+      setTransactions((current) =>
+        current.map((item) => {
+          const ruleCategory = ruleMap[merchantKey(item.originalTitle)]
+          return ruleCategory ? { ...item, category: ruleCategory } : item
+        }),
+      )
+      toast(`${changes.length} lançamento(s) atualizado(s) pelas regras.`)
+    } catch (cause) {
+      notifyError(cause)
+    } finally {
+      setSavingRule(false)
+    }
+  }
+
+  // ---------- Contas fixas, receitas e gastos avulsos ----------
+
+  /** Executa uma operação financeira com indicador de salvamento, aviso e tratamento de erro. */
   const runFinance = async (operation: () => Promise<void>, message: string): Promise<boolean> => {
     if (!user) return false
 
     setSavingFinance(true)
-    setError('')
 
     try {
       await operation()
-      setCloudMessage(message)
+      toast(message)
       return true
     } catch (cause) {
-      setError(getFirestoreErrorMessage(cause))
+      notifyError(cause)
       return false
     } finally {
       setSavingFinance(false)
@@ -459,9 +540,16 @@ export default function Dashboard() {
       setBills((current) => [...current.filter((item) => item.id !== saved.id), saved])
     }, `Conta "${bill.name.trim()}" salva.`)
 
-  const handleDeleteBill = (bill: Bill) => {
-    if (!window.confirm(`Excluir a conta "${bill.name}" e o histórico de pagamentos dela?`)) return
-    void runFinance(async () => {
+  const handleDeleteBill = async (bill: Bill) => {
+    const ok = await confirm({
+      title: 'Excluir conta fixa',
+      message: `A conta "${bill.name}" e todo o histórico de pagamentos dela serão apagados.`,
+      confirmLabel: 'Excluir',
+      danger: true,
+    })
+    if (!ok) return
+
+    await runFinance(async () => {
       await deleteBill(user!.uid, bill.id)
       setBills((current) => current.filter((item) => item.id !== bill.id))
       setPayments((current) => current.filter((item) => item.billId !== bill.id))
@@ -486,12 +574,40 @@ export default function Dashboard() {
       setIncomes((current) => [...current.filter((item) => item.id !== saved.id), saved])
     }, `Receita "${income.name.trim()}" salva.`)
 
-  const handleDeleteIncome = (income: Income) => {
-    if (!window.confirm(`Excluir a receita "${income.name}"?`)) return
-    void runFinance(async () => {
+  const handleDeleteIncome = async (income: Income) => {
+    const ok = await confirm({
+      title: 'Excluir receita',
+      message: `A receita "${income.name}" será apagada de todos os meses.`,
+      confirmLabel: 'Excluir',
+      danger: true,
+    })
+    if (!ok) return
+
+    await runFinance(async () => {
       await deleteIncome(user!.uid, income.id)
       setIncomes((current) => current.filter((item) => item.id !== income.id))
     }, `Receita "${income.name}" excluída.`)
+  }
+
+  const handleSaveExpense = (expense: NewExpense) =>
+    runFinance(async () => {
+      const saved = await saveExpense(user!.uid, expense)
+      setExpenses((current) => [...current.filter((item) => item.id !== saved.id), saved])
+    }, `Gasto "${expense.description.trim()}" salvo.`)
+
+  const handleDeleteExpense = async (expense: Expense) => {
+    const ok = await confirm({
+      title: 'Excluir gasto',
+      message: `O gasto "${expense.description}" será apagado.`,
+      confirmLabel: 'Excluir',
+      danger: true,
+    })
+    if (!ok) return
+
+    await runFinance(async () => {
+      await deleteExpense(user!.uid, expense.id)
+      setExpenses((current) => current.filter((item) => item.id !== expense.id))
+    }, `Gasto "${expense.description}" excluído.`)
   }
 
   const openInvoice = (invoiceId: string) => {
@@ -499,77 +615,9 @@ export default function Dashboard() {
     void handleInvoiceSelection(invoiceId)
   }
 
-  const handleCategoryChange = (id: string, category: TransactionCategory) => {
-    const transaction = transactions.find((item) => item.id === id)
-    if (transaction) void applyCategoryToMerchant(transaction.originalTitle, category)
-  }
-
-  const handleRuleChange = (rule: CategoryRule, category: TransactionCategory) => {
-    void applyCategoryToMerchant(rule.sampleTitle, category)
-  }
-
-  const handleDeleteRule = async (rule: CategoryRule) => {
-    if (!user) return
-    if (!window.confirm(`Excluir a regra "${rule.sampleTitle}" → ${rule.category}?`)) return
-
-    setSavingRule(true)
-    setError('')
-
-    try {
-      await deleteCategoryRule(user.uid, rule.id)
-      setRules((current) => current.filter((item) => item.id !== rule.id))
-      setCloudMessage('Regra excluída. Os lançamentos já categorizados foram mantidos.')
-    } catch (cause) {
-      setError(getFirestoreErrorMessage(cause))
-    } finally {
-      setSavingRule(false)
-    }
-  }
-
-  const handleReapplyRules = async () => {
-    if (!user || !selectedInvoiceId) return
-
-    const changes = transactions
-      .map((item) => ({ item, ruleCategory: ruleMap[merchantKey(item.originalTitle)] }))
-      .filter(({ item, ruleCategory }) => ruleCategory && ruleCategory !== item.category)
-
-    if (!changes.length) {
-      setCloudMessage('Nenhuma alteração: a fatura já está de acordo com as regras.')
-      return
-    }
-
-    setSavingRule(true)
-    setError('')
-
-    try {
-      const byCategory = new Map<TransactionCategory, string[]>()
-      changes.forEach(({ item, ruleCategory }) => {
-        const ids = byCategory.get(ruleCategory) ?? []
-        ids.push(item.id)
-        byCategory.set(ruleCategory, ids)
-      })
-
-      for (const [category, ids] of byCategory) {
-        await updateTransactionsCategory(user.uid, selectedInvoiceId, ids, category)
-      }
-
-      setTransactions((current) =>
-        current.map((item) => {
-          const ruleCategory = ruleMap[merchantKey(item.originalTitle)]
-          return ruleCategory ? { ...item, category: ruleCategory } : item
-        }),
-      )
-      setCloudMessage(`${changes.length} lançamento(s) atualizado(s) pelas regras.`)
-    } catch (cause) {
-      setError(getFirestoreErrorMessage(cause))
-    } finally {
-      setSavingRule(false)
-    }
-  }
-
   if (!user) return null
 
-  const busy = cloudLoading || savingRule || savingFinance
+  const busy = savingRule || savingFinance || savingBudget || invoiceLoading
 
   return (
     <div className="app-shell">
@@ -580,6 +628,15 @@ export default function Dashboard() {
               <span className="brand-pill">CONTROLE FINANCEIRO</span>
               <div className="user-session">
                 <span>{user.email}</span>
+                <button
+                  type="button"
+                  className="theme-toggle"
+                  onClick={toggleTheme}
+                  aria-label={theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'}
+                  title={theme === 'dark' ? 'Tema claro' : 'Tema escuro'}
+                >
+                  {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+                </button>
                 <button type="button" onClick={() => void logout()}>
                   <LogOut size={15} /> Sair
                 </button>
@@ -587,8 +644,8 @@ export default function Dashboard() {
             </div>
             <h1>Seu mês inteiro, em um só lugar.</h1>
             <p>
-              Receitas, fatura do cartão e contas fixas juntas, para você saber quanto
-              entra, quanto sai e quanto sobra.
+              Receitas, fatura do cartão, contas fixas e gastos avulsos juntos, para você saber
+              quanto entra, quanto sai e quanto sobra.
             </p>
           </div>
 
@@ -613,34 +670,38 @@ export default function Dashboard() {
       </header>
 
       <main className="container-app">
-        <nav className="view-tabs four">
+        <nav className="view-tabs four" aria-label="Navegação principal">
           <button type="button" className={view === 'month' ? 'active' : ''} onClick={() => setView('month')}>
-            <CalendarDays size={16} /> <span>Meu mês</span>
+            <CalendarDays size={18} /> <span>Meu mês</span>
           </button>
           <button type="button" className={view === 'invoice' ? 'active' : ''} onClick={() => setView('invoice')}>
-            <CreditCard size={16} /> <span>Cartão</span>
+            <CreditCard size={18} /> <span>Cartão</span>
           </button>
           <button type="button" className={view === 'bills' ? 'active' : ''} onClick={() => setView('bills')}>
-            <Receipt size={16} /> <span>Contas</span>
+            <Receipt size={18} /> <span>Contas</span>
           </button>
           <button type="button" className={view === 'history' ? 'active' : ''} onClick={() => setView('history')}>
-            <BarChart3 size={16} /> <span>Histórico</span>
+            <BarChart3 size={18} /> <span>Histórico</span>
           </button>
         </nav>
 
-        {(cloudMessage || busy) && (
-          <div className="cloud-message">
-            {busy && <LoaderCircle className="spin" size={16} />}
-            <span>
-              {savingRule ? 'Salvando regra de categoria...' : savingFinance ? 'Salvando...' : cloudMessage}
-            </span>
+        {busy && (
+          <div className="saving-indicator" aria-live="polite">
+            <LoaderCircle className="spin" size={14} /> Salvando...
           </div>
         )}
 
-        {error && view !== 'invoice' && <div className="inline-error history-error">{error}</div>}
+        {/* ---------- Carregamento inicial ---------- */}
+        {cloudLoading && (
+          <>
+            <SkeletonCards count={4} />
+            <SkeletonPanel lines={4} />
+            <SkeletonPanel lines={3} />
+          </>
+        )}
 
         {/* ---------- Meu mês ---------- */}
-        {view === 'month' && !cloudLoading && (
+        {!cloudLoading && view === 'month' && (
           <MonthOverview
             month={month}
             onMonthChange={setMonth}
@@ -648,42 +709,62 @@ export default function Dashboard() {
             bills={bills}
             payments={payments}
             incomes={incomes}
+            expenses={expenses}
+            forecast={forecast}
             saving={savingFinance}
             onPay={handlePayBill}
             onUnpay={handleUnpayBill}
             onOpenInvoice={openInvoice}
             onManage={() => setView('bills')}
-          />
+          >
+            <ExpensesPanel
+              month={month}
+              expenses={expenses}
+              saving={savingFinance}
+              onSave={handleSaveExpense}
+              onDelete={(expense) => void handleDeleteExpense(expense)}
+            />
+          </MonthOverview>
         )}
 
         {/* ---------- Contas e receitas ---------- */}
-        {view === 'bills' && (
+        {!cloudLoading && view === 'bills' && (
           <BillsManager
             month={month}
             bills={bills}
             incomes={incomes}
             saving={savingFinance}
             onSaveBill={handleSaveBill}
-            onDeleteBill={handleDeleteBill}
+            onDeleteBill={(bill) => void handleDeleteBill(bill)}
             onSaveIncome={handleSaveIncome}
-            onDeleteIncome={handleDeleteIncome}
+            onDeleteIncome={(income) => void handleDeleteIncome(income)}
           />
         )}
 
         {/* ---------- Histórico ---------- */}
-        {view === 'history' && !(error && history === null) && (
-          historyLoading || history === null ? (
-            <div className="cloud-message">
-              <LoaderCircle className="spin" size={16} />
-              <span>Carregando o histórico das faturas...</span>
-            </div>
-          ) : (
-            <HistoryView invoices={history} />
-          )
+        {!cloudLoading && view === 'history' && (
+          <Suspense
+            fallback={
+              <>
+                <SkeletonCards count={4} />
+                <SkeletonPanel chart />
+              </>
+            }
+          >
+            <CashflowHistory data={financeData} />
+            {allInvoices === null ? (
+              <>
+                <SkeletonCards count={4} />
+                <SkeletonPanel chart />
+              </>
+            ) : (
+              <HistoryView invoices={allInvoices} />
+            )}
+          </Suspense>
         )}
 
         {/* ---------- Cartão ---------- */}
-        {view === 'invoice' && (
+        {!cloudLoading && view === 'invoice' && (
           <>
             <section className="cloud-toolbar">
               <div className="cloud-toolbar-title">
@@ -701,7 +782,7 @@ export default function Dashboard() {
                   <span>Fatura</span>
                   <select
                     value={selectedInvoiceId}
-                    disabled={cloudLoading || invoices.length === 0}
+                    disabled={invoiceLoading || invoices.length === 0}
                     onChange={(event) => void handleInvoiceSelection(event.target.value)}
                   >
                     {invoices.length === 0 && <option value="">Nenhuma fatura salva</option>}
@@ -716,7 +797,7 @@ export default function Dashboard() {
                 <button
                   type="button"
                   className="delete-invoice-button"
-                  disabled={!selectedInvoiceId || deleting || cloudLoading}
+                  disabled={!selectedInvoiceId || deleting || invoiceLoading}
                   onClick={() => void handleDeleteInvoice()}
                 >
                   {deleting ? <LoaderCircle className="spin" size={16} /> : <Trash2 size={16} />}
@@ -725,74 +806,84 @@ export default function Dashboard() {
               </div>
             </section>
 
-            <FileUpload
-              fileName={fileName}
-              loading={loading}
-              error={error}
-              onFile={handleFile}
-            />
-          </>
-        )}
+            <FileUpload fileName={fileName} loading={loading} error={error} onFile={handleFile} />
 
-        {view === 'invoice' && transactions.length > 0 && (
-          <>
-            <SummaryCards transactions={transactions} />
-            <BudgetPanel
-              transactions={transactions}
-              budget={budget}
-              saving={savingBudget}
-              onSave={(next) => void handleSaveBudget(next)}
-            />
-            <UncategorizedPanel
-              transactions={transactions}
-              saving={savingRule}
-              onAssign={(title, category) => void applyCategoryToMerchant(title, category)}
-            />
-            <section className="charts-grid">
-              <CategoryChart transactions={transactions} />
-              <SpendingChart transactions={transactions} />
-            </section>
-            <TopMerchants transactions={transactions} />
-            {invoiceMonth && <Installments transactions={transactions} invoiceMonth={invoiceMonth} />}
-            <TransactionsTable
-              transactions={filtered}
-              categories={categories}
-              search={search}
-              categoryFilter={categoryFilter}
-              typeFilter={typeFilter}
-              onSearch={setSearch}
-              onCategoryFilter={setCategoryFilter}
-              onTypeFilter={setTypeFilter}
-              onCategoryChange={handleCategoryChange}
-            />
-            <CategoryRules
-              rules={rules}
-              transactions={transactions}
-              saving={savingRule}
-              onChange={handleRuleChange}
-              onDelete={(rule) => void handleDeleteRule(rule)}
-              onReapply={() => void handleReapplyRules()}
-            />
-          </>
-        )}
+            {invoiceLoading && (
+              <>
+                <SkeletonCards count={5} />
+                <SkeletonPanel lines={4} />
+              </>
+            )}
 
-        {view === 'invoice' && !transactions.length && !loading && !cloudLoading && (
-          <section className="welcome-state">
-            <div className="welcome-number">01</div>
-            <div>
-              <span className="eyebrow">Primeira importação</span>
-              <h2>Importe a fatura do seu cartão</h2>
-              <p>
-                Use o arquivo OFX exportado pelo seu banco (funciona com qualquer banco)
-                ou o CSV do Nubank. A fatura e os lançamentos são salvos na sua área
-                protegida e a mais recente é carregada automaticamente.
-              </p>
-            </div>
-          </section>
+            {!invoiceLoading && transactions.length > 0 && (
+              <>
+                <SummaryCards transactions={transactions} />
+                <BudgetPanel
+                  transactions={transactions}
+                  budget={budget}
+                  saving={savingBudget}
+                  onSave={(next) => void handleSaveBudget(next)}
+                />
+                <UncategorizedPanel
+                  transactions={transactions}
+                  saving={savingRule}
+                  onAssign={(title, category) => void applyCategoryToMerchant(title, category)}
+                />
+                <Suspense
+                  fallback={
+                    <section className="charts-grid">
+                      <SkeletonPanel chart />
+                      <SkeletonPanel chart />
+                    </section>
+                  }
+                >
+                  <section className="charts-grid">
+                    <CategoryChart transactions={transactions} />
+                    <SpendingChart transactions={transactions} />
+                  </section>
+                </Suspense>
+                <TopMerchants transactions={transactions} />
+                {invoiceMonth && <Installments transactions={transactions} invoiceMonth={invoiceMonth} />}
+                <TransactionsTable
+                  transactions={filtered}
+                  categories={categories}
+                  search={search}
+                  categoryFilter={categoryFilter}
+                  typeFilter={typeFilter}
+                  onSearch={setSearch}
+                  onCategoryFilter={setCategoryFilter}
+                  onTypeFilter={setTypeFilter}
+                  onCategoryChange={handleCategoryChange}
+                />
+                <CategoryRules
+                  rules={rules}
+                  transactions={transactions}
+                  saving={savingRule}
+                  onChange={handleRuleChange}
+                  onDelete={(rule) => void handleDeleteRule(rule)}
+                  onReapply={() => void handleReapplyRules()}
+                />
+              </>
+            )}
+
+            {!invoiceLoading && !transactions.length && !loading && (
+              <section className="welcome-state">
+                <div className="welcome-number">01</div>
+                <div>
+                  <span className="eyebrow">Primeira importação</span>
+                  <h2>Importe a fatura do seu cartão</h2>
+                  <p>
+                    Use o arquivo OFX exportado pelo seu banco (funciona com qualquer banco) ou o
+                    CSV do Nubank. A fatura e os lançamentos são salvos na sua área protegida.
+                  </p>
+                </div>
+              </section>
+            )}
+          </>
         )}
       </main>
 
-      <footer>Minha Fatura · dados sincronizados pelo Firebase</footer>
+      <footer>Minha Fatura · dados sincronizados pelo Firebase · v{packageJson.version}</footer>
     </div>
   )
 }

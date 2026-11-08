@@ -10,9 +10,20 @@ import {
   writeBatch,
 } from 'firebase/firestore'
 import { db } from '../firebase/firebase'
-import type { Bill, BillCategory, BillPayment, Income, NewBill, NewIncome } from '../types/Finance'
+import type {
+  Bill,
+  BillCategory,
+  BillPayment,
+  Expense,
+  Income,
+  NewBill,
+  NewExpense,
+  NewIncome,
+  PaymentMethod,
+} from '../types/Finance'
+import type { TransactionCategory } from '../types/Transaction'
 
-function userCollection(uid: string, name: 'bills' | 'billPayments' | 'incomes') {
+function userCollection(uid: string, name: 'bills' | 'billPayments' | 'incomes' | 'expenses') {
   return collection(db, 'users', uid, name)
 }
 
@@ -128,4 +139,41 @@ export async function saveIncome(uid: string, income: NewIncome): Promise<Income
 
 export async function deleteIncome(uid: string, incomeId: string): Promise<void> {
   await deleteDoc(doc(userCollection(uid, 'incomes'), incomeId))
+}
+
+// ---------- Gastos avulsos ----------
+
+export async function listExpenses(uid: string): Promise<Expense[]> {
+  const snapshot = await getDocs(userCollection(uid, 'expenses'))
+  return snapshot.docs.map((item) => {
+    const data = item.data()
+    return {
+      id: item.id,
+      description: String(data.description ?? ''),
+      amount: Number(data.amount ?? 0),
+      date: String(data.date ?? ''),
+      category: (data.category ?? 'Outros') as TransactionCategory,
+      method: (data.method ?? 'Pix') as PaymentMethod,
+    }
+  })
+}
+
+export async function saveExpense(uid: string, expense: NewExpense): Promise<Expense> {
+  const ref = expense.id
+    ? doc(userCollection(uid, 'expenses'), expense.id)
+    : doc(userCollection(uid, 'expenses'))
+  const data = {
+    description: expense.description.trim(),
+    amount: expense.amount,
+    date: expense.date,
+    category: expense.category,
+    method: expense.method,
+  }
+
+  await setDoc(ref, { ...data, updatedAt: serverTimestamp() })
+  return { id: ref.id, ...data }
+}
+
+export async function deleteExpense(uid: string, expenseId: string): Promise<void> {
+  await deleteDoc(doc(userCollection(uid, 'expenses'), expenseId))
 }

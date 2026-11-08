@@ -2,7 +2,7 @@
 // Guarda apenas os arquivos do próprio app (HTML, JS, CSS, ícones).
 // Dados financeiros (Firebase/Firestore) NUNCA passam pelo cache.
 
-const CACHE = 'minha-fatura-v1'
+const CACHE = 'minha-fatura-v2'
 
 self.addEventListener('install', () => self.skipWaiting())
 
