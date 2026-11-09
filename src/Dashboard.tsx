@@ -418,7 +418,7 @@ export default function Dashboard() {
 
         {/* ---------- Histórico ---------- */}
         {!cloudLoading && view === 'history' && (
-          <HistoryTab data={financeData} allInvoices={allInvoices} />
+          <HistoryTab data={financeData} allInvoices={allInvoices} onNavigate={setView} />
         )}
 
         {/* ---------- Cartão ---------- */}

@@ -1,10 +1,8 @@
-import { LogOut, Moon, Pencil, Sun } from 'lucide-react'
-import { useState } from 'react'
+import { LogOut, Moon, Sun } from 'lucide-react'
 import type { Theme } from '../../contexts/UiContext'
 import type { InvoiceSummary } from '../../types/Invoice'
 import type { ActiveScope, Space } from '../../types/Space'
 import { formatMonthLabel } from '../../utils/invoiceReference'
-import { RenameSpaceDialog } from './RenameSpaceDialog'
 import { SpaceSwitcher } from './SpaceSwitcher'
 import type { View } from './ViewTabs'
 
@@ -53,100 +51,71 @@ export function DashboardHeader({
   onSpaceRenamed,
   toast,
 }: DashboardHeaderProps) {
-  const [renamingSpace, setRenamingSpace] = useState(false)
-
-  const isSpaceOwner =
-    activeScope.kind === 'space' && activeScope.space.ownerUid === uid
-
   const spaceName =
     activeScope.kind === 'space' ? activeScope.space.name : 'Pessoal'
 
   const referenceLabel = view === 'invoice' ? 'Fatura analisada' : 'Mês em foco'
 
   return (
-    <>
-      <header className="hero">
-        <div className="hero-inner">
-          <div>
-            <div className="hero-topline">
-              <span className="brand-pill">CONTROLE FINANCEIRO</span>
-              <div className="user-session">
-                <span>{email}</span>
-                <SpaceSwitcher
-                  uid={uid}
-                  spaces={spaces}
-                  activeScope={activeScope}
-                  onScopeChange={onScopeChange}
-                  onSpacesChange={onSpacesChange}
-                  toast={toast}
-                />
-                <button
-                  type="button"
-                  className="theme-toggle"
-                  onClick={onToggleTheme}
-                  aria-label={theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'}
-                  title={theme === 'dark' ? 'Tema claro' : 'Tema escuro'}
-                >
-                  {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-                </button>
-                <button type="button" onClick={onLogout}>
-                  <LogOut size={15} /> Sair
-                </button>
-              </div>
+    <header className="hero">
+      <div className="hero-inner">
+        <div>
+          <div className="hero-topline">
+            <span className="brand-pill">CONTROLE FINANCEIRO</span>
+            <div className="user-session">
+              <span>{email}</span>
+              <SpaceSwitcher
+                uid={uid}
+                spaces={spaces}
+                activeScope={activeScope}
+                onScopeChange={onScopeChange}
+                onSpacesChange={onSpacesChange}
+                onSpaceRenamed={onSpaceRenamed}
+                toast={toast}
+              />
+              <button
+                type="button"
+                className="theme-toggle"
+                onClick={onToggleTheme}
+                aria-label={theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'}
+                title={theme === 'dark' ? 'Tema claro' : 'Tema escuro'}
+              >
+                {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+              </button>
+              <button type="button" onClick={onLogout}>
+                <LogOut size={15} /> Sair
+              </button>
             </div>
-            <h1>Seu mês inteiro, em um só lugar.</h1>
-            <p>
-              Receitas, fatura do cartão, contas fixas e gastos avulsos juntos, para você saber
-              quanto entra, quanto sai e quanto sobra.
-            </p>
           </div>
+          <h1>Seu mês inteiro, em um só lugar.</h1>
+          <p>
+            Receitas, fatura do cartão, contas fixas e gastos avulsos juntos, para você saber
+            quanto entra, quanto sai e quanto sobra.
+          </p>
+        </div>
 
-          <div className="reference-box">
-            <span>{referenceLabel}</span>
-            <strong>
-              {view === 'invoice'
-                ? invoiceMonth
-                  ? formatMonthLabel(invoiceMonth)
-                  : 'Nenhuma fatura'
-                : formatMonthLabel(month)}
-            </strong>
-            <small>
-              {view === 'invoice'
-                ? `${selectedInvoice?.card ? `${selectedInvoice.card} · ` : ''}${
-                    dueDateLabel ? `Vencimento ${dueDateLabel} · ` : ''
-                  }${fileName || 'Importe um arquivo para começar'}`
-                : `${invoiceCount} fatura(s) · ${billCount} conta(s) fixa(s) · ${incomeCount} receita(s)`}
-            </small>
-            {/* Nome do espaço ativo */}
-            <div className="reference-box-scope">
-              <span className="reference-box-scope-label">{spaceName}</span>
-              {isSpaceOwner && (
-                <button
-                  type="button"
-                  className="reference-box-rename"
-                  title="Renomear espaço"
-                  onClick={() => setRenamingSpace(true)}
-                >
-                  <Pencil size={11} />
-                  Renomear
-                </button>
-              )}
-            </div>
+        <div className="reference-box">
+          <span>{referenceLabel}</span>
+          <strong>
+            {view === 'invoice'
+              ? invoiceMonth
+                ? formatMonthLabel(invoiceMonth)
+                : 'Nenhuma fatura'
+              : formatMonthLabel(month)}
+          </strong>
+          <small>
+            {view === 'invoice'
+              ? `${selectedInvoice?.card ? `${selectedInvoice.card} · ` : ''}${
+                  dueDateLabel ? `Vencimento ${dueDateLabel} · ` : ''
+                }${fileName || 'Importe um arquivo para começar'}`
+              : `${invoiceCount} fatura(s) · ${billCount} conta(s) fixa(s) · ${incomeCount} receita(s)`}
+          </small>
+          {/* Nome do espaço ativo */}
+          <div className="reference-box-scope">
+            <span className="reference-box-scope-label">{spaceName}</span>
           </div>
         </div>
-      </header>
-
-      {renamingSpace && activeScope.kind === 'space' && (
-        <RenameSpaceDialog
-          space={activeScope.space}
-          onRenamed={(updated) => {
-            onSpaceRenamed(updated)
-            setRenamingSpace(false)
-          }}
-          onClose={() => setRenamingSpace(false)}
-          toast={toast}
-        />
-      )}
-    </>
+      </div>
+    </header>
   )
 }

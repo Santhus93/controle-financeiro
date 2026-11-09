@@ -1,5 +1,11 @@
 /* Historico do cartao e do mes */
 
+.history-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
 .history-view {
   display: flex;
   flex-direction: column;
@@ -71,6 +77,73 @@
   font: 800 17px Manrope;
 }
 
+/* Estado vazio unico quando nao ha faturas nem contas/receitas */
+.history-tab-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 56px 24px;
+  gap: 10px;
+}
+
+.history-tab-empty-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: #f0e9fb;
+  color: var(--purple);
+  display: grid;
+  place-items: center;
+  margin-bottom: 4px;
+}
+
+.history-tab-empty strong {
+  font: 800 20px Manrope, sans-serif;
+  color: var(--ink);
+  letter-spacing: -.02em;
+}
+
+.history-tab-empty span {
+  font-size: 14px;
+  color: var(--muted);
+  max-width: 440px;
+  line-height: 1.5;
+}
+
+.history-tab-empty-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.history-tab-empty-actions .button-primary {
+  cursor: pointer;
+  font-size: 13px;
+  padding: 10px 18px;
+}
+
+.history-tab-empty-btn-secondary {
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 11px;
+  border: 1px solid var(--line);
+  background: var(--panel, #fff);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background .18s, border-color .18s;
+}
+
+.history-tab-empty-btn-secondary:hover {
+  background: #f7f5fa;
+  border-color: #c9bedb;
+}
+
 .recurring-card>div:nth-child(2) {
   flex: 1;
   min-width: 0;
@@ -136,7 +209,7 @@
 
 /* ---------- Histórico completo ---------- */
 .cashflow-history {
-  margin-bottom: 18px;
+  margin-bottom: 0;
 }
 
 .positive-text {
@@ -161,4 +234,36 @@
   flex: 1;
   height: 1px;
   background: var(--line);
+}
+
+/* Tema escuro */
+html[data-theme="dark"] .history-tab-empty-icon {
+  background: #2a1f40;
+  color: var(--purple-2, #a78bfa);
+}
+
+html[data-theme="dark"] .history-tab-empty-btn-secondary {
+  background: var(--panel);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .history-tab-empty-btn-secondary:hover {
+  background: #2a1f40;
+}
+
+/* Largura de celular (até 420px) */
+@media (max-width: 420px) {
+  .history-tab-empty {
+    padding: 36px 16px;
+  }
+
+  .history-tab-empty-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .history-tab-empty-actions button {
+    width: 100%;
+  }
 }

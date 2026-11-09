@@ -25,7 +25,7 @@
 }
 
 .space-switcher-label {
-  max-width: 120px;
+  max-width: 130px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -47,13 +47,14 @@
   z-index: 90;
 }
 
-/* Menu dropdown */
+/* Menu dropdown como lista simples */
 .space-switcher-menu {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
   z-index: 91;
-  min-width: 190px;
+  min-width: 250px;
+  max-width: 320px;
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -64,38 +65,109 @@
   gap: 2px;
 }
 
+/* Item da lista simples: sem borda individual */
 .space-switcher-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 9px 10px;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
   border-radius: 8px;
   border: 0;
   background: transparent;
   color: var(--ink);
-  font-size: 13px;
-  font-weight: 600;
   cursor: pointer;
   text-align: left;
   width: 100%;
+  box-sizing: border-box;
+  transition: background .15s;
+  user-select: none;
 }
 
 .space-switcher-item:hover {
-  background: #f5f0fd;
-  color: var(--purple);
+  background: #f7f5fa;
 }
 
+.space-switcher-item-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.space-switcher-item-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+.space-switcher-item-sub {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.3;
+  margin-top: 1px;
+}
+
+.space-switcher-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Item ativo: fundo leve e ícone de check */
 .space-switcher-item.active {
-  background: var(--purple);
-  color: #fff;
+  background: #f4effc;
+}
+
+.space-switcher-item.active:hover {
+  background: #ede6f9;
+}
+
+.space-switcher-check {
+  color: var(--purple);
+  display: grid;
+  place-items: center;
+}
+
+/* Ícone de lápis para renomear no item ativo do dono */
+.space-switcher-rename-btn {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+  transition: background .15s, color .15s;
+}
+
+.space-switcher-rename-btn:hover {
+  background: rgba(109,40,217,.12);
+  color: var(--purple);
 }
 
 .space-switcher-item.space-switcher-new {
+  justify-content: flex-start;
+  gap: 8px;
   color: var(--purple);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .space-switcher-item.space-switcher-new:hover {
-  background: #ede9fe;
+  background: #f4effc;
 }
 
 .space-switcher-divider {
@@ -167,11 +239,10 @@
   background: #f5f5f5;
 }
 
-/* reference-box: nome do espaço ativo */
+/* reference-box: nome do espaço ativo como rótulo discreto, sem botão */
 .reference-box-scope {
   display: flex;
   align-items: center;
-  gap: 8px;
   margin-top: 4px;
   padding-top: 8px;
   border-top: 1px solid rgba(255,255,255,.15);
@@ -180,26 +251,88 @@
 .reference-box-scope-label {
   font-size: 11px;
   font-weight: 700;
-  color: rgba(255,255,255,.8);
+  color: rgba(255,255,255,.75);
   text-transform: uppercase;
-  letter-spacing: .1em;
+  letter-spacing: .08em;
 }
 
-.reference-box-rename {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  background: rgba(255,255,255,.12);
-  border: 1px solid rgba(255,255,255,.2);
-  border-radius: 6px;
-  color: rgba(255,255,255,.8);
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background .15s;
+/* Tema escuro */
+html[data-theme="dark"] .space-switcher-menu {
+  background: var(--panel);
+  border-color: var(--line);
+  box-shadow: 0 10px 32px rgba(0,0,0,.45);
 }
 
-.reference-box-rename:hover {
-  background: rgba(255,255,255,.22);
+html[data-theme="dark"] .space-switcher-item {
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .space-switcher-item:hover {
+  background: rgba(255,255,255,.05);
+}
+
+html[data-theme="dark"] .space-switcher-menu .space-switcher-item.active {
+  background: rgba(167,139,250,.14);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .space-switcher-menu .space-switcher-item.active:hover {
+  background: rgba(167,139,250,.2);
+}
+
+html[data-theme="dark"] .space-switcher-item-name {
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .space-switcher-item-sub {
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .space-switcher-check {
+  color: var(--purple-2, #a78bfa);
+}
+
+html[data-theme="dark"] .space-switcher-rename-btn {
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .space-switcher-rename-btn:hover {
+  color: var(--purple-2, #a78bfa);
+  background: rgba(167,139,250,.2);
+}
+
+html[data-theme="dark"] .space-switcher-item.space-switcher-new {
+  color: var(--purple-2, #a78bfa);
+}
+
+html[data-theme="dark"] .space-switcher-item.space-switcher-new:hover {
+  background: rgba(167,139,250,.1);
+}
+
+html[data-theme="dark"] .space-switcher-input {
+  background: var(--bg);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+html[data-theme="dark"] .space-switcher-cancel-btn {
+  color: var(--muted);
+  border-color: var(--line);
+}
+
+html[data-theme="dark"] .space-switcher-cancel-btn:hover:not(:disabled) {
+  background: #2a1f40;
+}
+
+/* Largura de celular (até 420px) */
+@media (max-width: 420px) {
+  .space-switcher-menu {
+    min-width: 230px;
+    max-width: calc(100vw - 28px);
+    right: -8px;
+  }
+
+  .space-switcher-label {
+    max-width: 85px;
+  }
 }
