@@ -1,298 +1,54 @@
 # AGENTS.md — Controle Financeiro (Minha Fatura)
 
-Contexto do projeto para agentes de código (OpenCode, Claude Code etc.).
-Leia este arquivo inteiro antes de alterar qualquer coisa.
+Regras curtas para agentes de código. Detalhes ficam em `docs/` e só devem ser lidos quando a tarefa exigir.
 
----
+## 1. Regras de trabalho
 
-## 1. Como trabalhar neste projeto
+- Responda em **português do Brasil**.
+- **Diagnóstico antes de alterar.** Separe fatos, hipóteses e recomendações.
+- **Nunca faça commit nem push sem pedido explícito**, nem em etapas intermediárias. O push na `main` publica o site.
+- Nunca coloque `.csv`, `.ofx` ou `.env.local` no repositório. Não rode `npm audit fix --force`.
+- Mudanças pequenas e completas: **quem muda a assinatura de uma função atualiza todos os chamadores no mesmo passo**.
+- Ao final, rode **uma vez só**: `npm run build`, `npm test` e `npm run lint`. Não fique aguardando em loop.
+- Relatório final **curto**: arquivos alterados, resultado dos três comandos e roteiro de teste.
+- Não leia `dist/`, `node_modules/` nem arquivos de fatura.
 
-- Responda e comente em **português do Brasil**.
-- **Diagnostique antes de alterar.** Explique a causa provável e só então proponha a mudança.
-- Diferencie **fatos** (o que está no código ou nos dados), **hipóteses** e **recomendações**.
-- **Preserve as regras de negócio** da seção 5. Não as altere sem pedir.
-- Faça mudanças **pequenas e validáveis**. Ao final de cada etapa, rode:
-  ```text
-  npm run build
-  ```
-  O build precisa passar sem erro de TypeScript. O aviso de "chunks maiores que 500 kB" é conhecido e não bloqueia.
-- **Não faça commit nem push** sem o usuário pedir. O push na `main` publica o site automaticamente.
-- **Nunca** coloque arquivos `.csv`, `.ofx` ou o `.env.local` no repositório.
-- Não rode `npm audit fix --force`.
-- Ao propor código, entregue o **arquivo completo** com o caminho exato, não trechos soltos.
+## 2. Stack
 
----
+React + TypeScript + Vite · Firebase Auth (e-mail/senha + Google) e Firestore · Recharts · lucide-react · PapaParse · Vitest · GitHub Pages (Actions) · PWA. Node 24+.
 
-## 2. O que é o app
+Sem `.env.local` (variáveis `VITE_FIREBASE_*`), a tela fica branca.
 
-App web pessoal de organização financeira, usado no computador e no celular (PWA).
-
-- Importa a **fatura do cartão** (OFX de qualquer banco ou CSV do Nubank), categoriza os lançamentos e analisa.
-- Controla **contas fixas** (fora do cartão), **receitas** e **gastos avulsos** (Pix, débito, dinheiro, boleto).
-- Mostra **quanto sobra no mês**, a **previsão do próximo mês** e o **histórico**.
-- Dados salvos no **Firebase Firestore**, separados por usuário, com login por e-mail e senha.
-
-Publicado em: `https://santhus93.github.io/controle-financeiro/`
-Repositório: `https://github.com/Santhus93/controle-financeiro` (público)
-
----
-
-## 3. Stack e ambiente
-
-| Item | Detalhe |
-|---|---|
-| Front-end | React + TypeScript + Vite (Vite 8, build com rolldown) |
-| Gráficos | Recharts |
-| Ícones | lucide-react |
-| CSV | PapaParse |
-| Backend | Firebase Authentication (e-mail/senha + Google) + Cloud Firestore |
-| Hospedagem | GitHub Pages via GitHub Actions (`.github/workflows/deploy.yml`) |
-| PWA | `public/manifest.webmanifest`, `public/sw.js`, `public/icons/` |
-| Node | **24 ou superior** (o Firebase exige `>=24.12`; com Node 22 aparecem avisos `EBADENGINE`) |
-
-Máquinas:
-- Trabalho: `C:\Projetos\controle-financeiro`
-- Casa: `D:\Projetos\controle-financeiro` (o Git está em `C:\Program Files\Git\cmd`; se não for reconhecido, rodar `set "PATH=C:\Program Files\Git\cmd;%PATH%"`)
-
-Variáveis de ambiente (arquivo `.env.local`, fora do Git; no GitHub ficam como *secrets* do Actions):
-```text
-VITE_FIREBASE_API_KEY
-VITE_FIREBASE_AUTH_DOMAIN
-VITE_FIREBASE_PROJECT_ID
-VITE_FIREBASE_STORAGE_BUCKET
-VITE_FIREBASE_MESSAGING_SENDER_ID
-VITE_FIREBASE_APP_ID
-```
-Sem o `.env.local`, a tela fica em branco: o `src/firebase/app.ts` lança erro se faltar variável.
-
-Login (V5.0): **e-mail/senha** e **Google**. O Google usa pop-up no navegador e redirecionamento quando o app está instalado como PWA (`display-mode: standalone`) ou quando o pop-up é bloqueado. E-mails do Firebase saem em `pt-BR` (`auth.languageCode`).
-
-**Verificação de e-mail:** quem entra por e-mail/senha recebe um link de confirmação. O usuário **não verificado continua usando o espaço pessoal normalmente**; a verificação será exigida apenas para **aceitar convites** (V5.2). O aviso no Dashboard só aparece para contas com o provedor `password`.
-
-`vite.config.ts` usa `base: '/controle-financeiro/'` no build e `/` no desenvolvimento.
-
----
-
-## 4. Estrutura
+## 3. Mapa rápido
 
 ```text
 src/
-├── main.tsx                 UiProvider > AuthProvider > App; aplica o tema; registra o service worker
-├── App.tsx                  Só decide entre Login e Dashboard (Dashboard é carregado sob demanda)
-├── Dashboard.tsx            Área logada: carga inicial do Firestore e composição das 4 abas
-├── App.css                  Só os @import de src/styles/ (ordem abaixo)
-├── index.css                Reset/base; o @import do Google Fonts é a primeira regra
-├── styles/                  CSS organizado por funcionalidade, na ordem em que é aplicado:
-│   ├── base.css             Variáveis :root, reset, .app-shell, .container-app, .panel,
-│   │                        .panel-heading, .eyebrow, .button-primary e campos de formulário
-│   ├── layout.css           .hero*, .reference-box, .user-session, .view-tabs*, .cloud-message,
-│   │                        .saving-indicator e footer
-│   ├── feedback.css         Toast, dialog e skeleton
-│   ├── login.css            Tela de login (tudo de Login.tsx)
-│   ├── invoices.css         Upload, cloud-toolbar, stat-card, gráficos, TopMerchants,
-│   │                        Installments, tabela, não categorizados e regras de categoria;
-│   │                        guarda as @media de cascata de .summary-grid e .panel
-│   ├── budget.css           Orçamento por categoria (.budget-*)
-│   ├── month.css            .month-*, .due-*, .status-badge, .forecast-*, .finance-*,
-│   │                        .bills-* e .expenses-*
-│   ├── history.css          .history-*, .recurring-*, .var-badge, .diff-*, .total-row,
-│   │                        .cashflow-* e .section-divider
-│   ├── responsive.css       @media agrupadas por breakpoint (1000 → 900 → 760 → 520 → 420);
-│   │                        o 480 de .summary-grid/.panel fica em invoices.css (cascata)
-│   └── theme-dark.css       Todas as regras html[data-theme="dark"], por último
-│
-├── firebase/
-│   ├── app.ts               initializeApp + Auth (carregado já no login)
-│   └── firebase.ts          Firestore (db) — os serviços importam { db } daqui
-│
-├── contexts/
-│   ├── AuthContext.tsx      Sessão do usuário
-│   └── UiContext.tsx        toast(), confirm() próprio e tema claro/escuro
-│
-├── hooks/                   Estado e operações por assunto (recebem uid/toast/confirm por parâmetro)
-│   ├── useBudget.ts             Orçamento por categoria
-│   ├── useCategorization.ts     Troca de categoria e regras de estabelecimento
-│   ├── useFinance.ts            Contas fixas, pagamentos, receitas e gastos avulsos
-│   ├── useInvoiceHistory.ts     Faturas completas (previsão e histórico)
-│   ├── useInvoices.ts           Lista de faturas, fatura aberta e importação
-│   ├── useRules.ts              Regras de categoria e merchantKey
-│   └── useTransactionFilters.ts Filtros da tabela de lançamentos
-│
-├── services/
-│   ├── importService.ts         Escolhe o leitor pela extensão; conferência com o saldo do banco
-│   ├── ofxParser.ts             Leitor OFX (SGML e XML, UTF-8 ou Windows-1252)
-│   ├── csvParser.ts             Leitor do CSV do Nubank (date,title,amount)
-│   ├── transactionClassifier.ts Tipo do lançamento e parcela "x/y"
-│   ├── categoryEngine.ts        Regras padrão de categoria e merchantKey()
-│   ├── categoryRulesService.ts  De-Para do usuário no Firestore
-│   ├── firestoreService.ts      Faturas, lançamentos e verificação de duplicidade
-│   ├── budgetService.ts         Orçamento por categoria
-│   ├── financeService.ts        Contas fixas, pagamentos, receitas e gastos avulsos
-│   └── authService.ts           Cadastro, login e-mail/senha e Google, recuperação de senha,
-│                                verificação de e-mail e logout
-│
-├── components/
-│   ├── dashboard/           Abas e cabeçalho do Dashboard (só props)
-│   │   ├── DashboardHeader.tsx  Cabeçalho/hero
-│   │   ├── ViewTabs.tsx         Navegação das abas e tipo View
-│   │   ├── EmailVerificationBanner.tsx  Faixa "Confirme seu e-mail"
-│   │   ├── MonthTab.tsx         Aba "Meu mês"
-│   │   ├── InvoiceTab.tsx       Aba "Cartão"
-│   │   ├── BillsTab.tsx         Aba "Contas"
-│   │   └── HistoryTab.tsx       Aba "Histórico" (lazy/Suspense dos gráficos)
-│   ├── Login.tsx            Entrar | Criar conta | Esqueci minha senha (+ Google)
-│   ├── MonthOverview.tsx    Aba "Meu mês": resumo, previsão, vencimentos, receitas
-│   │                        (também exibe o ExpensesPanel via `children`)
-│   ├── ExpensesPanel.tsx    Gastos avulsos
-│   ├── BillsManager.tsx     Aba "Contas": cadastro de contas fixas e receitas
-│   ├── CashflowHistory.tsx  Histórico do mês completo
-│   ├── HistoryView.tsx      Histórico do cartão (categorias mês a mês, recorrências)
-│   ├── FileUpload.tsx, SummaryCards.tsx, BudgetPanel.tsx, UncategorizedPanel.tsx,
-│   ├── CategoryChart.tsx, SpendingChart.tsx, TopMerchants.tsx, Installments.tsx,
-│   ├── TransactionsTable.tsx, CategoryRules.tsx, Skeleton.tsx
-│
-├── types/
-│   ├── Transaction.ts       Transaction, categorias, tipos
-│   ├── Invoice.ts           InvoiceSummary, SavedInvoice
-│   └── Finance.ts           Bill, BillPayment, Income, Expense
-│
-└── utils/
-    ├── currency.ts, dates.ts
-    ├── errors.ts            getErrorMessage (falhas do Firestore)
-    ├── authErrors.ts        getAuthErrorMessage (códigos do Firebase Auth)
-    ├── invoiceReference.ts  Mês da fatura pelo vencimento no nome do arquivo, addMonths
-    └── monthPlan.ts         Resumo do mês, previsão, status de vencimento, meses do histórico
+├── App.tsx / main.tsx      Login x Dashboard (lazy) · UiProvider > AuthProvider
+├── Dashboard.tsx           carga inicial do Firestore e composição das abas
+├── hooks/                  estado e regras por domínio (faturas, regras, finanças...)
+├── components/dashboard/   uma aba por arquivo + header, abas, banner de e-mail
+├── components/             painéis e tabelas
+├── services/               Firestore, importação OFX/CSV, autenticação
+├── firebase/               app.ts (Auth), firebase.ts (db), paths.ts (caminhos raiz)
+├── contexts/               AuthContext, UiContext (toast, confirm, tema)
+├── styles/                 CSS por funcionalidade; App.css só importa
+├── types/ · utils/         tipos, cálculos do mês, erros
 ```
 
-Abas do Dashboard: **Meu mês | Cartão | Contas | Histórico**.
-Componentes com Recharts (`CategoryChart`, `SpendingChart`, `HistoryView`, `CashflowHistory`) são importados com `lazy()`.
+## 4. Regras de negócio essenciais
 
----
-
-## 5. Regras de negócio (preservar)
-
-**Sinal dos valores (interno):** compra = **positivo**; pagamento e estorno = **negativo**.
-No OFX é o contrário: o leitor inverte o sinal.
-
-**Tipos de lançamento** (`transactionClassifier.ts`):
-- `payment`: "pagamento recebido", "pagamento de fatura" etc.
-- `refund`: "estorno", "reembolso", "cancelamento" etc.
-- `other`: saldo trazido da fatura anterior ("valor pendente do mês anterior"). **Não entra** em gastos, gráficos nem orçamento, para não contar duas vezes.
-- `pix_credit`: "Pix no Crédito".
-- `installment`: tem "x/y" na descrição (ex.: "Parcela 2/5" ou "- 1/2").
-- `purchase`: demais compras.
-- **Gasto** = tipos `purchase`, `installment` e `pix_credit` com valor positivo.
-
-**Mês da fatura:** vem da data de **vencimento no nome do arquivo** (`Nubank_AAAA-MM-DD.ofx`). Sem data no nome, usa o mês do lançamento mais recente.
-
-**Duplicidade de fatura:**
-- Assinatura SHA-256 de `data | descrição | valor` (independe do formato).
-- Além disso, se uma fatura do mesmo mês ou com o mesmo total tiver **90% ou mais dos lançamentos com o mesmo valor**, é considerada a mesma fatura (cobre CSV x OFX). O app pergunta se deve substituir.
-
-**Leitura do OFX:**
-- Não confiar no `CHARSET` do cabeçalho: tenta UTF-8 estrito e, se falhar, Windows-1252. Há também `repairMojibake()` para "CrÃ©dito".
-- Não usar `FITID` como id (o Nubank repete).
-- Conferência: soma de tudo exceto pagamentos deve bater com o `LEDGERBAL` do banco.
-
-**Categorias:**
-- Prioridade: regra do usuário (Firestore) → regras padrão → "Não categorizado".
-- Juros, multa, IOF e saldo anterior → "Financeiro".
-- Mudar a categoria de um lançamento muda **todos** os do mesmo estabelecimento (`merchantKey`) e salva a regra.
-
-**Contas fixas, receitas e avulsos:**
-- **Conta fixa é só o que NÃO passa pelo cartão.** O que é pago no cartão aparece apenas na fatura.
-- Conta **variável** (água, luz) usa o valor estimado até ser paga; depois, o valor pago.
-- Vencimento no dia 31 cai no último dia em meses mais curtos.
-- Status: paga, atrasada, vence em breve (até 5 dias), a vencer.
-- Receita: recorrente (todo mês a partir de um mês) ou única.
-
-**Fórmulas:**
-- Cartão no mês = `totalExpenses − totalRefunds` das faturas com vencimento no mês.
+- Valor interno: **compra positiva**; pagamento e estorno negativos (o OFX vem invertido).
+- **Conta fixa, receita e gasto avulso são só o que NÃO passa pelo cartão.**
+- Cada espaço (Pessoal, Escritório...) tem **dados totalmente separados**.
 - **Sobra** = receitas − cartão − contas fixas − gastos avulsos.
-- **Previsão** do mês seguinte: cartão = parcelas já compradas + média à vista das últimas 3 faturas (ou o valor real, se a fatura já foi importada); avulsos = maior entre o lançado e a média dos últimos 3 meses.
+- Mês da fatura = data de vencimento no nome do arquivo.
 
-**Orçamento:** verde até 80%, amarelo de 80% a 100%, vermelho acima de 100%.
+## 5. Onde ler mais (só quando necessário)
 
----
-
-## 6. Firestore
-
-Tudo fica dentro de `users/{uid}`:
-
-```text
-users/{uid}/
-├── invoices/{invoiceId}
-│   └── transactions/{transactionId}
-├── categoryRules/{ruleId}
-├── settings/budget
-├── bills/{billId}
-├── billPayments/{AAAA-MM_billId}
-├── incomes/{incomeId}
-└── expenses/{expenseId}
-```
-
-Regras de segurança publicadas (não alterar sem necessidade):
-```text
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{userId} {
-      allow read, create, update, delete: if request.auth != null && request.auth.uid == userId;
-      match /{document=**} {
-        allow read, create, update, delete: if request.auth != null && request.auth.uid == userId;
-      }
-    }
-  }
-}
-```
-Coleções novas dentro de `users/{uid}` já são cobertas por essas regras.
-
----
-
-## 7. Histórico de versões
-
-| Versão | Entrega |
+| Leia | Quando a tarefa mexer em |
 |---|---|
-| V1 | Leitor do CSV Nubank, cards, gráficos, tabela |
-| V1.1 | Login Firebase |
-| V1.2 | Faturas e lançamentos no Firestore |
-| V1.3 | Regras de categoria na nuvem, painel de não categorizados |
-| V1.4 | Ranking de estabelecimentos, projeção de parcelas, mês pelo vencimento |
-| V2 | Histórico do cartão e comparativo mensal |
-| V2.1 | GitHub Pages + PWA |
-| V2.2 / V2.3 | Importação OFX e duplicidade entre formatos |
-| V3 | Orçamento por categoria |
-| V3.1 | Carregamento sob demanda e layout no celular |
-| V3.2 | Correção de acentos no OFX, encargos e saldo anterior |
-| V3.3 | Correção de estouro de largura no iPhone |
-| V4 | Meu mês, contas fixas e receitas |
-| V4.1 | Avisos, janelas próprias, navegação inferior, modo escuro, esqueleto |
-| V4.2 | Histórico do mês completo e previsão |
-| V4.3 | Gastos avulsos fora do cartão |
+| `docs/arquitetura.md` | arquivos, hooks, componentes, CSS, autenticação, regras de cálculo |
+| `docs/firestore.md` | dados, coleções, serviços, espaços, regras de segurança |
+| `docs/historico.md` | versões, dívidas técnicas, próximos passos |
 
----
-
-## 8. Pontos conhecidos e dívidas técnicas
-
-- **CSS organizado por funcionalidade** em `src/styles/` (V4.3.1). A ordem dos arquivos é a ordem da cascata; `responsive.css` concentra as `@media` (com as exceções abaixo) e `theme-dark.css` todas as regras do tema escuro. A reorganização foi validada comparando o vencedor de cada seletor/propriedade em várias larguras antes e depois: o resultado efetivo da cascata não mudou.
-- **Exceções de cascata que continuam em `invoices.css`:** as `@media` de `.summary-grid` (1000, 760 e 480) e a de `.panel` (480) precisam ficar depois das regras comuns de `.month-kpis`, `.uncat-done`, `.bills-rule`, `.history-empty` e `.month-nav`. Por isso não foram para `responsive.css`; o bloco 480 está comentado lá indicando o motivo.
-- **`.summary-grid.skeleton-grid`** (em `feedback.css`) usa especificidade de duas classes para o `margin: 0 0 18px` vencer a regra de `.summary-grid` independentemente da ordem dos arquivos. O JSX continua usando só `skeleton-grid`.
-- **`Dashboard.tsx` ainda tem ~336 linhas** (era ~890 antes dos lotes de refatoração). O que restou é a carga inicial em `[user]` e a composição das abas; candidato a extrair a carga inicial para um hook (`useDashboardData`) e ficar abaixo de ~250 linhas.
-- **Modo escuro** mexe em muitas cores. Podem existir pontos ainda claros demais.
-- Algumas **regras de categoria antigas** foram gravadas com acento quebrado (chave com "cra dito"). Podem ser excluídas pelo painel de regras.
-- O aviso de chunk acima de 500 kB vem do Firestore no `Dashboard` (565 kB) e do Recharts no `CategoricalChart` (305 kB).
-- **Classes usadas no JSX sem regra no CSS:** `cashflow-table`, `chart-panel`, `table-panel`, `history-chart`, `history-categories`, `history-recurring` e `muted-zero`. Não quebram o build; `cashflow-table` ainda herda as regras genéricas de `table/th/td`.
-- **`slate` agora tem regra:** `.stat-card.slate .stat-top` (`#475569`) em `invoices.css` e a equivalente `#94a3b8` em `theme-dark.css`. Antes o card "Lançamentos" (`SummaryCards.tsx`) e "Maior fatura" (`HistoryView.tsx`) ficavam sem cor.
-- **Testes:** existe **Vitest** com `src/utils/errors.test.ts` (8 testes de `getErrorMessage`) e `src/utils/authErrors.test.ts` (17 testes de `getAuthErrorMessage`). Rode com `npm test` (`vitest run`). Ainda não há testes dos cálculos; `monthPlan.ts`, `ofxParser.ts` e a duplicidade são bons candidatos.
-- **`getErrorMessage` devolve texto vazio** quando o `Error` não tem mensagem (`new Error('')`). Isso faz o toast de erro aparecer sem texto; corrigir para cair na mensagem padrão.
-- **Verificação de e-mail (V5.0):** o aviso `EmailVerificationBanner` aparece só para contas com provedor `password` e `emailVerified === false`. O usuário não verificado **usa o espaço pessoal normalmente**; a verificação só será exigida para aceitar convites (V5.2). "Já confirmei" chama `reloadUser()` e o `AuthContext` troca a referência da sessão para atualizar a tela. O Google cai para `signInWithRedirect` em PWA instalado ou quando o pop-up é bloqueado.
-
----
-
-## 9. Próximos passos sugeridos
-
-1. Validar a V4.3 no computador e no celular (modo escuro, navegação inferior, gastos avulsos, previsão).
-2. Extrair a carga inicial do `Dashboard.tsx` para um hook (`useDashboardData`), sem mudar comportamento.
-3. Testes unitários dos cálculos (`monthPlan.ts`, `ofxParser.ts`, duplicidade).
-4. **V5:** metas de economia e alertas automáticos (categoria acima da média, conta subindo, vencimentos próximos).
-5. Depois: vários cartões, exportação para Excel, notificações de vencimento.
+Ao terminar uma etapa, atualize **apenas** o documento afetado.
