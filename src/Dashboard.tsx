@@ -28,7 +28,7 @@ import { listBillPayments, listBills, listExpenses, listIncomes } from './servic
 import { listInvoices, loadInvoice } from './services/firestoreService'
 import { listMySpaces } from './services/spacesService'
 import type { ActiveScope, Space } from './types/Space'
-import { scopeRoot, userRoot } from './firebase/paths'
+import { scopeRoot } from './firebase/paths'
 import { addMonths, formatDueDate } from './utils/invoiceReference'
 import { computeForecast, currentMonth } from './utils/monthPlan'
 import { getErrorMessage } from './utils/errors'
@@ -225,13 +225,36 @@ export default function Dashboard() {
     [allInvoices, financeData, month],
   )
 
-  // ----- Carga inicial: espaços + dados do escopo -----
+  // ----- Lista de espaços do usuário -----
   useEffect(() => {
     if (!user) return
 
     let cancelled = false
 
-    const loadInitialData = async () => {
+    listMySpaces(user.uid)
+      .then((mySpaces) => {
+        if (cancelled) return
+        setSpaces(mySpaces)
+        const savedScope = readSavedScope(user.uid, mySpaces)
+        setActiveScopeState(savedScope)
+      })
+      .catch((cause) => {
+        if (!cancelled) notifyError(cause)
+      })
+
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
+
+  // ----- Carga inicial e recarga de escopo: depende de [user, root] com flag cancelled -----
+  useEffect(() => {
+    if (!user || !root) return
+
+    let cancelled = false
+
+    const loadScopeData = async () => {
       setCloudLoading(true)
 
       // Limpa dados do escopo anterior imediatamente
@@ -248,99 +271,9 @@ export default function Dashboard() {
       setAllInvoices(null)
 
       try {
-        // 1. Carrega os espaços (apenas na primeira vez; root não muda ainda)
-        const mySpaces = await listMySpaces(user.uid)
-        if (cancelled) return
-        setSpaces(mySpaces)
-
-        // Restaura o escopo salvo (pode depender da lista de espaços)
-        const savedScope = readSavedScope(user.uid, mySpaces)
-        setActiveScopeState(savedScope)
-        const currentRoot = scopeRoot(user.uid, savedScope)
-
-        // 2. Regras de categoria (migra legado apenas no Pessoal)
-        let foundRules = await listCategoryRules(currentRoot)
-        if (savedScope.kind === 'personal') {
-          const legacyRules = readLegacyLocalRules()
-          if (Object.keys(legacyRules).length > 0) {
-            const imported = await importLegacyRules(currentRoot, legacyRules, rulesToMap(foundRules))
-            clearLegacyLocalRules()
-            if (imported > 0) foundRules = await listCategoryRules(currentRoot)
-          }
-        }
-
-        const [foundBudget, foundBills, foundPayments, foundIncomes, foundExpenses, foundInvoices] =
-          await Promise.all([
-            loadBudget(currentRoot),
-            listBills(currentRoot),
-            listBillPayments(currentRoot),
-            listIncomes(currentRoot),
-            listExpenses(currentRoot),
-            listInvoices(currentRoot),
-          ])
-        if (cancelled) return
-
-        setRules(foundRules)
-        setBudget(foundBudget)
-        setBills(foundBills)
-        setPayments(foundPayments)
-        setIncomes(foundIncomes)
-        setExpenses(foundExpenses)
-        setInvoices(foundInvoices)
-
-        if (foundInvoices.length > 0) {
-          const latestInvoice = await loadInvoice(currentRoot, foundInvoices[0].id)
-          if (cancelled) return
-          applyLoadedInvoice(latestInvoice.id, latestInvoice.fileName, latestInvoice.transactions)
-        }
-      } catch (cause) {
-        if (!cancelled) notifyError(cause)
-      } finally {
-        if (!cancelled) setCloudLoading(false)
-      }
-    }
-
-    void loadInitialData()
-
-    return () => {
-      cancelled = true
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user])
-
-  // ----- Recarga ao trocar de escopo (após a carga inicial) -----
-  const prevRootRef = useRef<string>('')
-  useEffect(() => {
-    // Ignora a primeira renderização (a carga inicial já faz isso)
-    if (!user || cloudLoading) {
-      prevRootRef.current = root
-      return
-    }
-    if (root === prevRootRef.current) return
-    prevRootRef.current = root
-
-    let cancelled = false
-
-    const reloadScope = async () => {
-      setCloudLoading(true)
-
-      // Limpa imediatamente para nunca exibir dados de outro espaço
-      setRules([])
-      setBudget({ monthlyLimit: 0, categories: {} })
-      setBills([])
-      setPayments([])
-      setIncomes([])
-      setExpenses([])
-      setInvoices([])
-      setSelectedInvoiceId('')
-      setFileName('')
-      setTransactions([])
-      setAllInvoices(null)
-
-      try {
         let foundRules = await listCategoryRules(root)
 
-        // Migra legado de localStorage apenas no escopo Pessoal
+        // A migração de regras do localStorage só roda no Pessoal
         if (activeScope.kind === 'personal') {
           const legacyRules = readLegacyLocalRules()
           if (Object.keys(legacyRules).length > 0) {
@@ -381,13 +314,13 @@ export default function Dashboard() {
       }
     }
 
-    void reloadScope()
+    void loadScopeData()
 
     return () => {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [root])
+  }, [user, root])
 
   const openInvoice = (invoiceId: string) => {
     setView('invoice')

@@ -39,7 +39,7 @@ service cloud.firestore {
 
 Qualquer coleção nova dentro de `users/{uid}` já fica protegida.
 
-## Espaços (V5.1 — planejado, ainda não implementado)
+## Espaços (V5.1 — implementada)
 
 - O **Pessoal** continua em `users/{uid}`, sem migração.
 - Espaços compartilhados (ex.: Escritório) ficam em `spaces/{spaceId}`, com as **mesmas coleções** do Pessoal.
@@ -53,14 +53,16 @@ spaces/{spaceId}
 └── invoices/, bills/, billPayments/, incomes/, expenses/, categoryRules/, settings/budget
 ```
 
-Implementação prevista:
+Implementação:
 - `paths.ts`: `spaceRoot(spaceId)` e `scopeRoot(uid, scope)`;
-- os serviços recebem `root` (caminho raiz) em vez de `uid`, **com todos os chamadores atualizados no mesmo passo**.
-  Como `uid` e `root` são `string`, o TypeScript não acusa chamada esquecida: procure em `src/` e liste;
-- ao trocar de espaço, limpar todo o estado antes de carregar o novo, para nunca exibir dados de um espaço no outro;
-- a migração de regras do localStorage só roda no Pessoal.
+- os serviços recebem `root` (caminho raiz) em vez de `uid`, com todos os chamadores atualizados;
+- ao trocar de espaço, todo o estado é limpo antes de carregar o novo, para nunca exibir dados de um espaço no outro;
+- a carga inicial e recarga de escopo dependem de `[user, root]` com flag `cancelled`;
+- a migração de regras do localStorage só roda no Pessoal;
+- seletor `SpaceSwitcher` no cabeçalho permite alternar entre Pessoal e Espaços e criar novos;
+- botão "Renomear" aparece apenas para o dono do espaço ativo.
 
-Regras previstas (arquivo `firestore.rules` na raiz; **publicação manual no console**):
+Regras de segurança (arquivo `firestore.rules` na raiz; **publicação manual no console**):
 
 ```text
 rules_version = '2';
