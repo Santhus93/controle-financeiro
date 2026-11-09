@@ -45,7 +45,7 @@ Repositório: `https://github.com/Santhus93/controle-financeiro` (público)
 | Gráficos | Recharts |
 | Ícones | lucide-react |
 | CSV | PapaParse |
-| Backend | Firebase Authentication (e-mail/senha) + Cloud Firestore |
+| Backend | Firebase Authentication (e-mail/senha + Google) + Cloud Firestore |
 | Hospedagem | GitHub Pages via GitHub Actions (`.github/workflows/deploy.yml`) |
 | PWA | `public/manifest.webmanifest`, `public/sw.js`, `public/icons/` |
 | Node | **24 ou superior** (o Firebase exige `>=24.12`; com Node 22 aparecem avisos `EBADENGINE`) |
@@ -64,6 +64,10 @@ VITE_FIREBASE_MESSAGING_SENDER_ID
 VITE_FIREBASE_APP_ID
 ```
 Sem o `.env.local`, a tela fica em branco: o `src/firebase/app.ts` lança erro se faltar variável.
+
+Login (V5.0): **e-mail/senha** e **Google**. O Google usa pop-up no navegador e redirecionamento quando o app está instalado como PWA (`display-mode: standalone`) ou quando o pop-up é bloqueado. E-mails do Firebase saem em `pt-BR` (`auth.languageCode`).
+
+**Verificação de e-mail:** quem entra por e-mail/senha recebe um link de confirmação. O usuário **não verificado continua usando o espaço pessoal normalmente**; a verificação será exigida apenas para **aceitar convites** (V5.2). O aviso no Dashboard só aparece para contas com o provedor `password`.
 
 `vite.config.ts` usa `base: '/controle-financeiro/'` no build e `/` no desenvolvimento.
 
@@ -124,17 +128,19 @@ src/
 │   ├── firestoreService.ts      Faturas, lançamentos e verificação de duplicidade
 │   ├── budgetService.ts         Orçamento por categoria
 │   ├── financeService.ts        Contas fixas, pagamentos, receitas e gastos avulsos
-│   └── authService.ts           Login e logout
+│   └── authService.ts           Cadastro, login e-mail/senha e Google, recuperação de senha,
+│                                verificação de e-mail e logout
 │
 ├── components/
 │   ├── dashboard/           Abas e cabeçalho do Dashboard (só props)
 │   │   ├── DashboardHeader.tsx  Cabeçalho/hero
 │   │   ├── ViewTabs.tsx         Navegação das abas e tipo View
+│   │   ├── EmailVerificationBanner.tsx  Faixa "Confirme seu e-mail"
 │   │   ├── MonthTab.tsx         Aba "Meu mês"
 │   │   ├── InvoiceTab.tsx       Aba "Cartão"
 │   │   ├── BillsTab.tsx         Aba "Contas"
 │   │   └── HistoryTab.tsx       Aba "Histórico" (lazy/Suspense dos gráficos)
-│   ├── Login.tsx
+│   ├── Login.tsx            Entrar | Criar conta | Esqueci minha senha (+ Google)
 │   ├── MonthOverview.tsx    Aba "Meu mês": resumo, previsão, vencimentos, receitas
 │   │                        (também exibe o ExpensesPanel via `children`)
 │   ├── ExpensesPanel.tsx    Gastos avulsos
@@ -152,6 +158,8 @@ src/
 │
 └── utils/
     ├── currency.ts, dates.ts
+    ├── errors.ts            getErrorMessage (falhas do Firestore)
+    ├── authErrors.ts        getAuthErrorMessage (códigos do Firebase Auth)
     ├── invoiceReference.ts  Mês da fatura pelo vencimento no nome do arquivo, addMonths
     └── monthPlan.ts         Resumo do mês, previsão, status de vencimento, meses do histórico
 ```
@@ -275,8 +283,9 @@ Coleções novas dentro de `users/{uid}` já são cobertas por essas regras.
 - O aviso de chunk acima de 500 kB vem do Firestore no `Dashboard` (565 kB) e do Recharts no `CategoricalChart` (305 kB).
 - **Classes usadas no JSX sem regra no CSS:** `cashflow-table`, `chart-panel`, `table-panel`, `history-chart`, `history-categories`, `history-recurring` e `muted-zero`. Não quebram o build; `cashflow-table` ainda herda as regras genéricas de `table/th/td`.
 - **`slate` agora tem regra:** `.stat-card.slate .stat-top` (`#475569`) em `invoices.css` e a equivalente `#94a3b8` em `theme-dark.css`. Antes o card "Lançamentos" (`SummaryCards.tsx`) e "Maior fatura" (`HistoryView.tsx`) ficavam sem cor.
-- **Testes:** existe **Vitest** com `src/utils/errors.test.ts` (8 testes de `getErrorMessage`). Rode com `npm test` (`vitest run`). Ainda não há testes dos cálculos; `monthPlan.ts`, `ofxParser.ts` e a duplicidade são bons candidatos.
+- **Testes:** existe **Vitest** com `src/utils/errors.test.ts` (8 testes de `getErrorMessage`) e `src/utils/authErrors.test.ts` (17 testes de `getAuthErrorMessage`). Rode com `npm test` (`vitest run`). Ainda não há testes dos cálculos; `monthPlan.ts`, `ofxParser.ts` e a duplicidade são bons candidatos.
 - **`getErrorMessage` devolve texto vazio** quando o `Error` não tem mensagem (`new Error('')`). Isso faz o toast de erro aparecer sem texto; corrigir para cair na mensagem padrão.
+- **Verificação de e-mail (V5.0):** o aviso `EmailVerificationBanner` aparece só para contas com provedor `password` e `emailVerified === false`. O usuário não verificado **usa o espaço pessoal normalmente**; a verificação só será exigida para aceitar convites (V5.2). "Já confirmei" chama `reloadUser()` e o `AuthContext` troca a referência da sessão para atualizar a tela. O Google cai para `signInWithRedirect` em PWA instalado ou quando o pop-up é bloqueado.
 
 ---
 

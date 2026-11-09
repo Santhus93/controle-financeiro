@@ -234,3 +234,172 @@
   opacity: .6;
   cursor: wait;
 }
+
+/* Modos da tela: entrar, criar conta e recuperar senha */
+.login-mode-tabs {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 4px;
+  padding: 4px;
+  margin: 0 0 20px;
+  border-radius: 11px;
+  background: #f3eef8;
+}
+
+.login-mode-tabs button {
+  border: 0;
+  background: transparent;
+  color: #756d80;
+  padding: 9px 5px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  transition: .18s;
+}
+
+.login-mode-tabs button:hover {
+  color: #5b21b6;
+}
+
+.login-mode-tabs button.active {
+  background: #fff;
+  color: #5b21b6;
+  box-shadow: 0 3px 10px rgba(43,25,66,.1);
+}
+
+.login-hint {
+  margin: -8px 0 16px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #756d80;
+}
+
+.login-info {
+  border: 1px solid #ddd0f2;
+  background: #f5f1fb;
+  color: #4c1d75;
+  border-radius: 10px;
+  padding: 11px 13px;
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 2px 0 16px;
+}
+
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  color: #9a92a5;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e7e1ec;
+}
+
+.login-google {
+  width: 100%;
+  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1px solid #ddd5e5;
+  border-radius: 11px;
+  background: #fff;
+  color: #3b3247;
+  font-size: 13.5px;
+  font-weight: 700;
+  transition: .18s;
+}
+
+.login-google:hover:not(:disabled) {
+  background: #f7f5fa;
+  border-color: #c9bedb;
+}
+
+.login-google:disabled {
+  opacity: .6;
+  cursor: wait;
+}
+
+.login-link-button {
+  width: 100%;
+  margin-top: 16px;
+  border: 0;
+  background: transparent;
+  color: #6d28d9;
+  padding: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.login-link-button:hover {
+  text-decoration: underline;
+}
+
+/* Tema escuro (mantido aqui para não espalhar regras de login) */
+html[data-theme="dark"] .login-mode-tabs {
+  background: #2a1f40;
+}
+
+html[data-theme="dark"] .login-mode-tabs button {
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .login-mode-tabs button:hover {
+  color: var(--purple-2);
+}
+
+html[data-theme="dark"] .login-mode-tabs button.active {
+  background: var(--panel);
+  color: var(--purple-2);
+  box-shadow: none;
+}
+
+html[data-theme="dark"] .login-hint,
+html[data-theme="dark"] .login-divider {
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .login-divider::before,
+html[data-theme="dark"] .login-divider::after {
+  background: var(--line);
+}
+
+html[data-theme="dark"] .login-info {
+  background: #1f1633;
+  border-color: #3b2d55;
+  color: #c4b5fd;
+}
+
+html[data-theme="dark"] .login-google {
+  background: var(--panel);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .login-google:hover:not(:disabled) {
+  background: #2a1f40;
+}
+
+html[data-theme="dark"] .login-link-button {
+  color: var(--purple-2);
+}
+
+@media (max-width: 520px) {
+  .login-mode-tabs button {
+    padding: 8px 4px;
+    font-size: 11px;
+  }
+}

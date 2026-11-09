@@ -30,6 +30,30 @@ html[data-theme="dark"] .auth-loading-screen {
   color: var(--ink);
 }
 
+html[data-theme="dark"] .email-verify-banner {
+  background: #241a38;
+  border-color: #3b2d55;
+  color: var(--purple-2);
+}
+
+html[data-theme="dark"] .email-verify-text span {
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .email-verify-text em {
+  color: #fbbf24;
+}
+
+html[data-theme="dark"] .email-verify-actions button {
+  background: var(--panel);
+  border-color: var(--line);
+  color: var(--purple-2);
+}
+
+html[data-theme="dark"] .email-verify-actions button:hover:not(:disabled) {
+  background: #2a1f40;
+}
+
 /* Superfícies */
 html[data-theme="dark"] .stat-card,
 html[data-theme="dark"] .view-tabs,

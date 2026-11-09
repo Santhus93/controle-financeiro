@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { LoaderCircle } from 'lucide-react'
 import { BillsTab } from './components/dashboard/BillsTab'
 import { DashboardHeader } from './components/dashboard/DashboardHeader'
+import { EmailVerificationBanner } from './components/dashboard/EmailVerificationBanner'
 import { HistoryTab } from './components/dashboard/HistoryTab'
 import { InvoiceTab } from './components/dashboard/InvoiceTab'
 import { MonthTab } from './components/dashboard/MonthTab'
@@ -35,7 +36,7 @@ import packageJson from '../package.json'
  * Carregado sob demanda pelo App.tsx depois do login, junto com o Firestore.
  */
 export default function Dashboard() {
-  const { user, logout } = useAuth()
+  const { user, logout, refreshUser } = useAuth()
   const { toast, confirm, theme, toggleTheme } = useUi()
 
   const [cloudLoading, setCloudLoading] = useState(true)
@@ -237,6 +238,11 @@ export default function Dashboard() {
 
       <main className="container-app">
         <ViewTabs view={view} onChange={setView} />
+
+        {!user.emailVerified &&
+          user.providerData.some((provider) => provider.providerId === 'password') && (
+            <EmailVerificationBanner email={user.email} onRefresh={refreshUser} toast={toast} />
+          )}
 
         {busy && (
           <div className="saving-indicator" aria-live="polite">

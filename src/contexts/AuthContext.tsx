@@ -8,13 +8,19 @@ import {
 } from 'react'
 import { onAuthStateChanged, type User } from 'firebase/auth'
 import { auth } from '../firebase/app'
-import { loginWithEmail, logout } from '../services/authService'
+import { loginWithEmail, logout, reloadUser } from '../services/authService'
 
 interface AuthContextValue {
   user: User | null
   loading: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
+  /** Recarrega o usuário do Firebase e devolve se o e-mail já foi confirmado. */
+  refreshUser: () => Promise<boolean>
+}
+
+interface SessionState {
+  user: User | null
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -24,12 +30,14 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<User | null>(null)
+  // A sessão fica dentro de um objeto para o reload() poder trocar a referência
+  // mesmo quando o Firebase devolve o mesmo User (ele é mutado no lugar).
+  const [session, setSession] = useState<SessionState>({ user: null })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser)
+      setSession({ user: currentUser })
       setLoading(false)
     })
 
@@ -38,14 +46,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      user,
+      user: session.user,
       loading,
       login: async (email, password) => {
         await loginWithEmail(email, password)
       },
       logout,
+      refreshUser: async () => {
+        const refreshed = await reloadUser()
+
+        if (!refreshed) return false
+
+        setSession({ user: refreshed })
+
+        return refreshed.emailVerified
+      },
     }),
-    [user, loading],
+    [session, loading],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
