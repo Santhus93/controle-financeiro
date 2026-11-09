@@ -107,9 +107,19 @@ service cloud.firestore {
 Por que `/{sub}/{document=**}`: a forma `/{document=**}` também casa com o próprio documento do espaço,
 e um editor poderia alterar `roles` e se promover a dono.
 
-## Convites (V5.2 — planejado)
+## Convites (V5.2 — implementado)
 
-- `spaces/{spaceId}/invites/{inviteId}` com e-mail, papel e status.
-- Só quem tem **e-mail verificado** aceita convite (`request.auth.token.email_verified == true` nas regras).
-- Papéis: dono gerencia membros; editor lança e importa; leitor só visualiza.
-- Cada lançamento passa a guardar quem lançou.
+- Coleção raiz `invites/{spaceId}_{email}` com `spaceId`, `spaceName`, `email` (minúsculas),
+  `role` (`editor` | `viewer`), `ownerUid`, `invitedByEmail`, `createdAt`.
+- O app NÃO envia e-mail: o dono copia ou compartilha a mensagem pronta (WhatsApp, e-mail).
+- O convidado cria a conta com o mesmo e-mail, confirma o e-mail e aceita no seletor de espaços.
+- Aceite = um batch: adiciona o uid em `memberUids`, `roles` e `memberInfo` e apaga o convite.
+- `spaces/{id}.memberInfo` guarda `{ uid: { email, name? } }` para a lista de membros.
+- Regras:
+  - só o dono cria, atualiza e cancela convites do próprio espaço;
+  - só quem tem `email_verified` lê, recusa ou aceita o próprio convite;
+  - o aceite só permite adicionar a si mesmo, com o papel do convite;
+  - o dono troca papéis e remove membros, mas não adiciona ninguém sem convite;
+  - o membro (não dono) pode sair do espaço;
+  - os papéis de dono são decididos por `ownerUid`, não por `roles`.
+- Limitação conhecida: o Leitor ainda vê os botões de edição; a gravação é recusada pelas regras.

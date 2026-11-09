@@ -336,3 +336,284 @@ html[data-theme="dark"] .space-switcher-cancel-btn:hover:not(:disabled) {
     max-width: 85px;
   }
 }
+
+
+/* ============================================================
+   V5.2 - Convites e membros
+============================================================ */
+
+/* Selo de convites no botão do seletor */
+.space-switcher-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 99px;
+  background: #f59e0b;
+  color: #1f1830;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.space-switcher-section-title {
+  padding: 6px 10px 4px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.space-switcher-invite {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.space-switcher-invite .space-switcher-item-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.space-switcher-invite-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.space-switcher-invite-actions button {
+  flex: 1;
+}
+
+.space-switcher-note {
+  margin: 0 4px 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+  background: rgba(124, 58, 237, 0.08);
+}
+
+/* Janela de membros */
+.dialog.members-dialog {
+  width: min(100%, 540px);
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+.members-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.members-head h2 {
+  margin: 4px 0 0;
+}
+
+.members-close,
+.members-icon-btn {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel);
+  color: var(--muted);
+}
+
+.members-icon-btn {
+  color: var(--purple);
+}
+
+.members-icon-btn.danger {
+  color: #b42318;
+  border-color: #fecaca;
+}
+
+.members-icon-btn:disabled {
+  opacity: 0.45;
+}
+
+.members-section-title {
+  margin: 20px 0 10px;
+  font: 800 13px Manrope, sans-serif;
+  color: var(--ink);
+}
+
+.members-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.members-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.members-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.members-info strong {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.members-info span {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.members-role,
+.members-input {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel);
+  color: var(--ink);
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.members-input {
+  flex: 1;
+  min-width: 0;
+  outline: none;
+}
+
+.members-input:focus,
+.members-role:focus {
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+}
+
+.members-role-label {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 9px;
+  border-radius: 99px;
+  background: #f0e9fb;
+  color: #5b21b6;
+  white-space: nowrap;
+}
+
+.members-form {
+  display: flex;
+  gap: 8px;
+}
+
+.members-hint,
+.members-empty {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.members-invite-result {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid #d9c9f3;
+  border-radius: 12px;
+  background: rgba(124, 58, 237, 0.06);
+}
+
+.members-invite-result strong {
+  font-size: 13px;
+}
+
+.members-invite-result p {
+  margin: 6px 0 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.members-invite-result textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel);
+  color: var(--ink);
+  padding: 10px;
+  font: 12px/1.5 inherit;
+}
+
+.members-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.members-actions .rules-reapply {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.members-leave {
+  margin-top: 22px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Celular */
+@media (max-width: 520px) {
+  .members-form {
+    flex-direction: column;
+  }
+
+  .members-form .button-primary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .members-leave .delete-invoice-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Tema escuro */
+html[data-theme="dark"] .members-role-label {
+  background: #2a1f40;
+  color: #c4b5fd;
+}
+
+html[data-theme="dark"] .members-icon-btn.danger {
+  border-color: #5b1f1f;
+  color: #fca5a5;
+}
+
+html[data-theme="dark"] .members-invite-result {
+  border-color: #4c3a6b;
+  background: #211a2e;
+}
+
+html[data-theme="dark"] .space-switcher-badge {
+  color: #1a1425;
+}

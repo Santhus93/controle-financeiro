@@ -3,10 +3,22 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function signedIn() { return request.auth != null; }
+    function verified() { return request.auth.token.email_verified == true; }
+    function myEmail() { return request.auth.token.email.lower(); }
+    function spaceDoc(spaceId) {
+      return get(/databases/$(database)/documents/spaces/$(spaceId)).data;
+    }
     function roleIn(spaceId) {
-      return get(/databases/$(database)/documents/spaces/$(spaceId)).data.roles.get(request.auth.uid, null);
+      return spaceDoc(spaceId).roles.get(request.auth.uid, null);
+    }
+    function changed() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+    function mapChanged(field) {
+      return request.resource.data.get(field, {}).diff(resource.data.get(field, {})).affectedKeys();
     }
 
+    // ---------- Espaço pessoal ----------
     match /users/{userId} {
       allow read, write: if signedIn() && request.auth.uid == userId;
       match /{document=**} {
@@ -14,24 +26,79 @@ service cloud.firestore {
       }
     }
 
+    // ---------- Espaços compartilhados ----------
     match /spaces/{spaceId} {
       allow read: if signedIn() && request.auth.uid in resource.data.memberUids;
+
       allow create: if signedIn()
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.memberUids == [request.auth.uid]
         && request.resource.data.roles.keys().hasOnly([request.auth.uid])
         && request.resource.data.roles[request.auth.uid] == 'owner';
+
+      // Dono renomeia
       allow update: if signedIn()
-        && resource.data.roles.get(request.auth.uid, null) == 'owner'
-        && request.resource.data.ownerUid == resource.data.ownerUid
-        && request.resource.data.memberUids == resource.data.memberUids
-        && request.resource.data.roles == resource.data.roles;
+        && resource.data.ownerUid == request.auth.uid
+        && changed().hasOnly(['name']);
+
+      // Dono muda papéis ou remove membros (nunca adiciona alguém sem convite)
+      allow update: if signedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && changed().hasOnly(['memberUids', 'roles', 'memberInfo'])
+        && resource.data.memberUids.hasAll(request.resource.data.memberUids)
+        && request.resource.data.memberUids.hasAll([resource.data.ownerUid])
+        && request.resource.data.roles.keys().hasOnly(request.resource.data.memberUids)
+        && request.resource.data.roles[resource.data.ownerUid] == 'owner';
+
+      // Convidado aceita: e-mail verificado + convite existente; só adiciona a si mesmo
+      allow update: if signedIn() && verified()
+        && !(request.auth.uid in resource.data.memberUids)
+        && exists(/databases/$(database)/documents/invites/$(spaceId + '_' + myEmail()))
+        && changed().hasOnly(['memberUids', 'roles', 'memberInfo'])
+        && request.resource.data.memberUids == resource.data.memberUids.concat([request.auth.uid])
+        && mapChanged('roles').hasOnly([request.auth.uid])
+        && request.resource.data.roles[request.auth.uid]
+           == get(/databases/$(database)/documents/invites/$(spaceId + '_' + myEmail())).data.role
+        && mapChanged('memberInfo').hasOnly([request.auth.uid]);
+
+      // Membro (não dono) sai do espaço; só remove a si mesmo
+      allow update: if signedIn()
+        && request.auth.uid in resource.data.memberUids
+        && resource.data.ownerUid != request.auth.uid
+        && changed().hasOnly(['memberUids', 'roles', 'memberInfo'])
+        && request.resource.data.memberUids == resource.data.memberUids.removeAll([request.auth.uid])
+        && mapChanged('roles').hasOnly([request.auth.uid])
+        && !(request.auth.uid in request.resource.data.roles)
+        && mapChanged('memberInfo').hasOnly([request.auth.uid]);
+
       allow delete: if false;
 
+      // Dados do espaço: membros leem; dono e editor gravam
       match /{sub}/{document=**} {
         allow read: if signedIn() && roleIn(spaceId) != null;
         allow write: if signedIn() && roleIn(spaceId) in ['owner', 'editor'];
       }
+    }
+
+    // ---------- Convites ----------
+    // id = {spaceId}_{email em minúsculas}
+    match /invites/{inviteId} {
+      function isInvitee() { return verified() && resource.data.email == myEmail(); }
+
+      allow read: if signedIn()
+        && (resource.data.ownerUid == request.auth.uid || isInvitee());
+
+      allow create, update: if signedIn()
+        && request.resource.data.keys().hasOnly(
+             ['spaceId', 'spaceName', 'email', 'role', 'ownerUid', 'invitedByEmail', 'createdAt'])
+        && request.resource.data.ownerUid == request.auth.uid
+        && spaceDoc(request.resource.data.spaceId).ownerUid == request.auth.uid
+        && request.resource.data.email == request.resource.data.email.lower()
+        && inviteId == request.resource.data.spaceId + '_' + request.resource.data.email
+        && request.resource.data.role in ['editor', 'viewer'];
+
+      allow delete: if signedIn()
+        && (resource.data.ownerUid == request.auth.uid || isInvitee());
     }
   }
 }

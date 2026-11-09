@@ -1,8 +1,12 @@
-import { useState } from 'react'
-import { Check, ChevronDown, Pencil, Plus } from 'lucide-react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { Check, ChevronDown, Mail, Pencil, Plus, Users } from 'lucide-react'
+import { useAuth } from '../../contexts/AuthContext'
+import { acceptInvite, deleteInvite, listMyInvites } from '../../services/invitesService'
 import { createSpace } from '../../services/spacesService'
-import type { ActiveScope, Space } from '../../types/Space'
+import type { ActiveScope, Invite, Space } from '../../types/Space'
 import { getErrorMessage } from '../../utils/errors'
+import { ROLE_LABELS } from '../../utils/invites'
+import { MembersDialog } from './MembersDialog'
 import { RenameSpaceDialog } from './RenameSpaceDialog'
 
 interface SpaceSwitcherProps {
@@ -17,13 +21,15 @@ interface SpaceSwitcherProps {
 
 function getRoleLabel(space: Space, uid: string): string {
   const role = space.roles?.[uid] ?? (space.ownerUid === uid ? 'owner' : 'viewer')
-  if (role === 'owner') return 'Dono'
-  if (role === 'editor') return 'Editor'
-  return 'Leitor'
+  return ROLE_LABELS[role]
+}
+
+function sortSpaces(list: Space[]): Space[] {
+  return [...list].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
 }
 
 /**
- * Seletor de escopo: "Pessoal", espaços do usuário e "+ Novo espaço".
+ * Seletor de escopo: convites pendentes, "Pessoal", espaços do usuário e "+ Novo espaço".
  * Aparece ao lado do e-mail no cabeçalho.
  */
 export function SpaceSwitcher({
@@ -35,28 +41,64 @@ export function SpaceSwitcher({
   onSpaceRenamed,
   toast,
 }: SpaceSwitcherProps) {
+  const { user } = useAuth()
+  const userEmail = user?.email ?? ''
+  const verified = Boolean(user?.emailVerified)
+
   const [open, setOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
   const [saving, setSaving] = useState(false)
   const [renamingSpace, setRenamingSpace] = useState<Space | null>(null)
+  const [membersSpace, setMembersSpace] = useState<Space | null>(null)
+  const [invites, setInvites] = useState<Invite[]>([])
+  const [busyInviteId, setBusyInviteId] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
 
-  const activeLabel =
-    activeScope.kind === 'personal' ? 'Pessoal' : activeScope.space.name
+  // Convites recebidos: só para e-mail verificado (as regras do Firestore exigem).
+  useEffect(() => {
+    if (!user || !verified || !userEmail) return
+    let cancelled = false
+
+    const load = async () => {
+      try {
+        // Atualiza o token para refletir a verificação de e-mail recém-feita.
+        await user.getIdToken(true)
+        const found = await listMyInvites(userEmail)
+        if (!cancelled) setInvites(found)
+      } catch {
+        // Convites são opcionais: falha aqui não deve atrapalhar o app.
+      }
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [user, verified, userEmail, reloadKey])
+
+  const activeLabel = activeScope.kind === 'personal' ? 'Pessoal' : activeScope.space.name
+  const pendingCount = verified ? invites.length : 0
+
+  const toggleMenu = () => {
+    if (!open) setReloadKey((key) => key + 1)
+    setOpen(!open)
+    setCreating(false)
+  }
 
   const handleSelect = (scope: ActiveScope) => {
     setOpen(false)
     onScopeChange(scope)
   }
 
-  const handleCreateSpace = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleCreateSpace = async (event: FormEvent) => {
+    event.preventDefault()
     if (!newName.trim() || saving) return
 
     setSaving(true)
     try {
-      const space = await createSpace(uid, newName)
-      onSpacesChange([...spaces, space].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')))
+      const space = await createSpace(uid, newName, userEmail)
+      onSpacesChange(sortSpaces([...spaces, space]))
       onScopeChange({ kind: 'space', space })
       setCreating(false)
       setNewName('')
@@ -69,29 +111,123 @@ export function SpaceSwitcher({
     }
   }
 
+  const handleAccept = async (invite: Invite) => {
+    if (!user || busyInviteId) return
+    setBusyInviteId(invite.id)
+    try {
+      const space = await acceptInvite(invite, uid, userEmail, user.displayName)
+      setInvites((current) => current.filter((item) => item.id !== invite.id))
+      onSpacesChange(sortSpaces([...spaces.filter((item) => item.id !== space.id), space]))
+      onScopeChange({ kind: 'space', space })
+      setOpen(false)
+      toast(`Você entrou no espaço "${space.name}".`)
+    } catch (cause) {
+      toast(getErrorMessage(cause), 'error')
+    } finally {
+      setBusyInviteId('')
+    }
+  }
+
+  const handleDecline = async (invite: Invite) => {
+    if (busyInviteId) return
+    setBusyInviteId(invite.id)
+    try {
+      await deleteInvite(invite.id)
+      setInvites((current) => current.filter((item) => item.id !== invite.id))
+      toast('Convite recusado.', 'info')
+    } catch (cause) {
+      toast(getErrorMessage(cause), 'error')
+    } finally {
+      setBusyInviteId('')
+    }
+  }
+
+  const handleSpaceUpdated = (updated: Space) => {
+    onSpacesChange(sortSpaces(spaces.map((item) => (item.id === updated.id ? updated : item))))
+    onSpaceRenamed?.(updated)
+    setMembersSpace(updated)
+  }
+
+  const handleLeft = (spaceId: string) => {
+    onSpacesChange(spaces.filter((item) => item.id !== spaceId))
+    setMembersSpace(null)
+    onScopeChange({ kind: 'personal' })
+  }
+
   return (
     <div className="space-switcher">
       <button
         type="button"
         className="space-switcher-trigger"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggleMenu}
         aria-expanded={open}
         aria-haspopup="listbox"
         title="Trocar espaço"
       >
         <span className="space-switcher-label">{activeLabel}</span>
+        {pendingCount > 0 && (
+          <span className="space-switcher-badge" aria-label={`${pendingCount} convite(s) pendente(s)`}>
+            {pendingCount}
+          </span>
+        )}
         <ChevronDown size={12} className={open ? 'space-switcher-chevron open' : 'space-switcher-chevron'} />
       </button>
 
       {open && (
         <>
-          {/* backdrop */}
           <div
             className="space-switcher-backdrop"
-            onClick={() => { setOpen(false); setCreating(false) }}
+            onClick={() => {
+              setOpen(false)
+              setCreating(false)
+            }}
             aria-hidden
           />
           <div className="space-switcher-menu" role="listbox" aria-label="Selecionar espaço">
+            {/* Convites pendentes */}
+            {pendingCount > 0 && (
+              <>
+                <div className="space-switcher-section-title">Convites</div>
+                {invites.map((invite) => (
+                  <div className="space-switcher-invite" key={invite.id}>
+                    <div className="space-switcher-item-info">
+                      <span className="space-switcher-item-name">
+                        <Mail size={13} /> {invite.spaceName}
+                      </span>
+                      <span className="space-switcher-item-sub">
+                        {ROLE_LABELS[invite.role]} · convite de {invite.invitedByEmail}
+                      </span>
+                    </div>
+                    <div className="space-switcher-invite-actions">
+                      <button
+                        type="button"
+                        className="space-switcher-create-btn"
+                        disabled={Boolean(busyInviteId)}
+                        onClick={() => void handleAccept(invite)}
+                      >
+                        {busyInviteId === invite.id ? 'Entrando…' : 'Aceitar'}
+                      </button>
+                      <button
+                        type="button"
+                        className="space-switcher-cancel-btn"
+                        disabled={Boolean(busyInviteId)}
+                        onClick={() => void handleDecline(invite)}
+                      >
+                        Recusar
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <div className="space-switcher-divider" />
+              </>
+            )}
+
+            {!verified && (
+              <div className="space-switcher-note">
+                Confirme seu e-mail para receber convites de espaços compartilhados.
+              </div>
+            )}
+
             {/* Pessoal */}
             <div
               role="option"
@@ -99,9 +235,9 @@ export function SpaceSwitcher({
               tabIndex={0}
               className={`space-switcher-item${activeScope.kind === 'personal' ? ' active' : ''}`}
               onClick={() => handleSelect({ kind: 'personal' })}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
                   handleSelect({ kind: 'personal' })
                 }
               }}
@@ -122,8 +258,9 @@ export function SpaceSwitcher({
             {/* Espaços */}
             {spaces.map((space) => {
               const isActive = activeScope.kind === 'space' && activeScope.space.id === space.id
-              const isOwner = space.ownerUid === uid || space.roles?.[uid] === 'owner'
+              const isOwner = space.ownerUid === uid
               const roleLabel = getRoleLabel(space, uid)
+              const memberCount = space.memberUids.length
 
               return (
                 <div
@@ -133,26 +270,43 @@ export function SpaceSwitcher({
                   tabIndex={0}
                   className={`space-switcher-item${isActive ? ' active' : ''}`}
                   onClick={() => handleSelect({ kind: 'space', space })}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
                       handleSelect({ kind: 'space', space })
                     }
                   }}
                 >
                   <div className="space-switcher-item-info">
                     <span className="space-switcher-item-name">{space.name}</span>
-                    <span className="space-switcher-item-sub">Espaço compartilhado · {roleLabel}</span>
+                    <span className="space-switcher-item-sub">
+                      {roleLabel} · {memberCount} {memberCount === 1 ? 'pessoa' : 'pessoas'}
+                    </span>
                   </div>
                   <div className="space-switcher-item-actions">
+                    {isActive && (
+                      <button
+                        type="button"
+                        className="space-switcher-rename-btn"
+                        title="Membros e convites"
+                        aria-label="Membros e convites"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setOpen(false)
+                          setMembersSpace(space)
+                        }}
+                      >
+                        <Users size={13} />
+                      </button>
+                    )}
                     {isActive && isOwner && (
                       <button
                         type="button"
                         className="space-switcher-rename-btn"
                         title="Renomear espaço"
                         aria-label="Renomear espaço"
-                        onClick={(e) => {
-                          e.stopPropagation()
+                        onClick={(event) => {
+                          event.stopPropagation()
                           setOpen(false)
                           setRenamingSpace(space)
                         }}
@@ -174,29 +328,28 @@ export function SpaceSwitcher({
 
             {/* Novo espaço */}
             {creating ? (
-              <form className="space-switcher-create" onSubmit={(e) => void handleCreateSpace(e)}>
+              <form className="space-switcher-create" onSubmit={(event) => void handleCreateSpace(event)}>
                 <input
                   type="text"
                   className="space-switcher-input"
                   placeholder="Nome do espaço"
                   value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
+                  onChange={(event) => setNewName(event.target.value)}
                   autoFocus
                   maxLength={60}
                   disabled={saving}
                 />
                 <div className="space-switcher-create-actions">
-                  <button
-                    type="submit"
-                    className="space-switcher-create-btn"
-                    disabled={!newName.trim() || saving}
-                  >
+                  <button type="submit" className="space-switcher-create-btn" disabled={!newName.trim() || saving}>
                     {saving ? 'Criando…' : 'Criar'}
                   </button>
                   <button
                     type="button"
                     className="space-switcher-cancel-btn"
-                    onClick={() => { setCreating(false); setNewName('') }}
+                    onClick={() => {
+                      setCreating(false)
+                      setNewName('')
+                    }}
                     disabled={saving}
                   >
                     Cancelar
@@ -204,11 +357,7 @@ export function SpaceSwitcher({
                 </div>
               </form>
             ) : (
-              <button
-                type="button"
-                className="space-switcher-item space-switcher-new"
-                onClick={() => setCreating(true)}
-              >
+              <button type="button" className="space-switcher-item space-switcher-new" onClick={() => setCreating(true)}>
                 <Plus size={14} />
                 <span>Novo espaço</span>
               </button>
@@ -221,15 +370,23 @@ export function SpaceSwitcher({
         <RenameSpaceDialog
           space={renamingSpace}
           onRenamed={(updated) => {
-            onSpacesChange(
-              spaces
-                .map((s) => (s.id === updated.id ? updated : s))
-                .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
-            )
+            onSpacesChange(sortSpaces(spaces.map((item) => (item.id === updated.id ? updated : item))))
             onSpaceRenamed?.(updated)
             setRenamingSpace(null)
           }}
           onClose={() => setRenamingSpace(null)}
+          toast={toast}
+        />
+      )}
+
+      {membersSpace && user && (
+        <MembersDialog
+          space={membersSpace}
+          uid={uid}
+          userEmail={userEmail}
+          onClose={() => setMembersSpace(null)}
+          onSpaceUpdated={handleSpaceUpdated}
+          onLeft={handleLeft}
           toast={toast}
         />
       )}
