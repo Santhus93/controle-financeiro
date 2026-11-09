@@ -1,75 +1,34 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
-import { Cloud, LoaderCircle, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { LoaderCircle } from 'lucide-react'
+import { BillsTab } from './components/dashboard/BillsTab'
 import { DashboardHeader } from './components/dashboard/DashboardHeader'
+import { HistoryTab } from './components/dashboard/HistoryTab'
+import { InvoiceTab } from './components/dashboard/InvoiceTab'
+import { MonthTab } from './components/dashboard/MonthTab'
 import { ViewTabs, type View } from './components/dashboard/ViewTabs'
-import { BillsManager } from './components/BillsManager'
-import { BudgetPanel } from './components/BudgetPanel'
-import { CategoryRules } from './components/CategoryRules'
-import { ExpensesPanel } from './components/ExpensesPanel'
-import { FileUpload } from './components/FileUpload'
-import { Installments } from './components/Installments'
-import { MonthOverview } from './components/MonthOverview'
 import { SkeletonCards, SkeletonPanel } from './components/Skeleton'
-import { SummaryCards } from './components/SummaryCards'
-import { TopMerchants } from './components/TopMerchants'
-import { TransactionsTable } from './components/TransactionsTable'
-import { UncategorizedPanel } from './components/UncategorizedPanel'
 import { useAuth } from './contexts/AuthContext'
 import { useUi } from './contexts/UiContext'
 import { useBudget } from './hooks/useBudget'
+import { useCategorization } from './hooks/useCategorization'
 import { useFinance } from './hooks/useFinance'
 import { useInvoiceHistory } from './hooks/useInvoiceHistory'
+import { useInvoices } from './hooks/useInvoices'
+import { useRules } from './hooks/useRules'
 import { useTransactionFilters } from './hooks/useTransactionFilters'
 import { loadBudget } from './services/budgetService'
+import { clearLegacyLocalRules, readLegacyLocalRules } from './services/categoryEngine'
 import {
-  clearLegacyLocalRules,
-  detectCategory,
-  merchantKey,
-  readLegacyLocalRules,
-} from './services/categoryEngine'
-import {
-  deleteCategoryRule,
   importLegacyRules,
   listCategoryRules,
   rulesToMap,
-  saveCategoryRule,
-  sortRules,
-  type CategoryRule,
 } from './services/categoryRulesService'
 import { listBillPayments, listBills, listExpenses, listIncomes } from './services/financeService'
-import { describeLedgerCheck, importStatement } from './services/importService'
-import {
-  deleteInvoice,
-  findEquivalentInvoice,
-  listInvoices,
-  loadInvoice,
-  saveInvoice,
-  updateTransactionsCategory,
-} from './services/firestoreService'
-import type { InvoiceSummary } from './types/Invoice'
-import type { Transaction, TransactionCategory } from './types/Transaction'
-import { addMonths, formatDueDate, formatMonthLabel } from './utils/invoiceReference'
+import { listInvoices, loadInvoice } from './services/firestoreService'
+import { addMonths, formatDueDate } from './utils/invoiceReference'
 import { computeForecast, currentMonth } from './utils/monthPlan'
 import { getErrorMessage } from './utils/errors'
 import packageJson from '../package.json'
-
-// Componentes com gráficos (Recharts) só são baixados quando aparecem na tela.
-const CategoryChart = lazy(() =>
-  import('./components/CategoryChart').then((module) => ({ default: module.CategoryChart })),
-)
-const SpendingChart = lazy(() =>
-  import('./components/SpendingChart').then((module) => ({ default: module.SpendingChart })),
-)
-const HistoryView = lazy(() =>
-  import('./components/HistoryView').then((module) => ({ default: module.HistoryView })),
-)
-const CashflowHistory = lazy(() =>
-  import('./components/CashflowHistory').then((module) => ({ default: module.CashflowHistory })),
-)
-
-function formatReferenceMonth(referenceMonth: string): string {
-  return formatMonthLabel(referenceMonth)
-}
 
 /**
  * Painel principal (área logada).
@@ -79,17 +38,7 @@ export default function Dashboard() {
   const { user, logout } = useAuth()
   const { toast, confirm, theme, toggleTheme } = useUi()
 
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [invoices, setInvoices] = useState<InvoiceSummary[]>([])
-  const [rules, setRules] = useState<CategoryRule[]>([])
-  const [selectedInvoiceId, setSelectedInvoiceId] = useState('')
-  const [fileName, setFileName] = useState('')
-  const [loading, setLoading] = useState(false)
   const [cloudLoading, setCloudLoading] = useState(true)
-  const [invoiceLoading, setInvoiceLoading] = useState(false)
-  const [deleting, setDeleting] = useState(false)
-  const [savingRule, setSavingRule] = useState(false)
-  const [error, setError] = useState('')
   const [view, setView] = useState<View>('month')
   const [month, setMonth] = useState(currentMonth())
 
@@ -115,6 +64,38 @@ export default function Dashboard() {
     setExpenses,
   } = useFinance({ uid: user?.uid, month, toast, confirm })
 
+  const { rules, savingRule, setSavingRule, ruleMap, setRules, saveRule, deleteRule } = useRules({
+    uid: user?.uid,
+    toast,
+    confirm,
+  })
+
+  // A carga de uma fatura precisa limpar os filtros da tabela. O ref permite
+  // passar o reset para o hook sem inverter a ordem dos hooks.
+  const resetFiltersRef = useRef<() => void>(() => {})
+
+  const {
+    invoices,
+    setInvoices,
+    selectedInvoiceId,
+    fileName,
+    transactions,
+    setTransactions,
+    loading,
+    invoiceLoading,
+    deleting,
+    error,
+    applyLoadedInvoice,
+    handleFile,
+    handleInvoiceSelection,
+    handleDeleteInvoice,
+  } = useInvoices({
+    uid: user?.uid,
+    toast,
+    confirm,
+    resetFilters: () => resetFiltersRef.current(),
+  })
+
   const { allInvoices } = useInvoiceHistory({
     user,
     invoices,
@@ -136,9 +117,25 @@ export default function Dashboard() {
     setTypeFilter,
   } = useTransactionFilters(transactions)
 
+  useEffect(() => {
+    resetFiltersRef.current = resetFilters
+  }, [resetFilters])
+
+  const { applyCategoryToMerchant, handleCategoryChange, handleRuleChange, handleReapplyRules } =
+    useCategorization({
+      uid: user?.uid,
+      toast,
+      transactions,
+      setTransactions,
+      selectedInvoiceId,
+      ruleMap,
+      setRules,
+      setSavingRule,
+      saveRule,
+    })
+
   const { budget, savingBudget, saveBudget: handleSaveBudget, setBudget } = useBudget()
 
-  const ruleMap = useMemo(() => rulesToMap(rules), [rules])
   const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId)
   const invoiceMonth = selectedInvoice?.referenceMonth ?? ''
   const dueDateLabel = formatDueDate(fileName)
@@ -152,17 +149,6 @@ export default function Dashboard() {
     () => (allInvoices ? computeForecast(addMonths(month, 1), financeData, allInvoices) : null),
     [allInvoices, financeData, month],
   )
-
-  const applyLoadedInvoice = (
-    invoiceId: string,
-    loadedFileName: string,
-    loadedTransactions: Transaction[],
-  ) => {
-    setSelectedInvoiceId(invoiceId)
-    setFileName(loadedFileName)
-    setTransactions(loadedTransactions)
-    resetFilters()
-  }
 
   useEffect(() => {
     if (!user) return
@@ -222,229 +208,6 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
-  // ---------- Cartão ----------
-
-  const handleFile = async (file: File) => {
-    if (!user) return
-
-    setLoading(true)
-    setError('')
-
-    try {
-      const statement = await importStatement(file)
-
-      // Aplica as regras do usuário (Firestore) antes de salvar.
-      const categorized = statement.transactions.map((item) => ({
-        ...item,
-        category: detectCategory(item.originalTitle, ruleMap),
-      }))
-
-      // Verifica se a mesma fatura já existe, inclusive em outro formato (CSV x OFX).
-      const equivalent = await findEquivalentInvoice(user.uid, file.name, categorized)
-      let replacedLabel = ''
-
-      if (equivalent && !equivalent.identical) {
-        const label = `${formatReferenceMonth(equivalent.invoice.referenceMonth)} (${equivalent.invoice.fileName})`
-        const replace = await confirm({
-          title: 'Esta fatura já está salva',
-          message:
-            `A fatura de ${label} já existe: ${equivalent.matched} de ${equivalent.total} lançamentos têm o mesmo valor.\n\n` +
-            `Deseja substituí-la pela versão ${statement.format.toUpperCase()} (${file.name})?`,
-          confirmLabel: 'Substituir',
-          cancelLabel: 'Manter a atual',
-        })
-
-        if (!replace) {
-          const existing = await loadInvoice(user.uid, equivalent.invoice.id)
-          applyLoadedInvoice(existing.id, existing.fileName, existing.transactions)
-          toast(`Importação cancelada: a fatura de ${label} foi mantida.`, 'info')
-          return
-        }
-
-        await deleteInvoice(user.uid, equivalent.invoice.id)
-        replacedLabel = ` Substituiu ${equivalent.invoice.fileName}.`
-      }
-
-      const result = await saveInvoice(user.uid, file.name, categorized, statement.card)
-      const refreshedInvoices = await listInvoices(user.uid)
-
-      setInvoices(refreshedInvoices)
-      applyLoadedInvoice(result.invoice.id, result.invoice.fileName, result.invoice.transactions)
-      toast(
-        (result.alreadyExisted
-          ? 'Esta fatura já estava salva. A versão existente foi carregada.'
-          : `Fatura ${statement.card} (${statement.format.toUpperCase()}) salva com ${categorized.length} lançamentos.` +
-            replacedLabel) + describeLedgerCheck(statement),
-        result.alreadyExisted ? 'info' : 'success',
-      )
-    } catch (cause) {
-      setError(getErrorMessage(cause))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleInvoiceSelection = async (invoiceId: string) => {
-    if (!user || !invoiceId || invoiceId === selectedInvoiceId) return
-
-    setInvoiceLoading(true)
-
-    try {
-      const invoice = await loadInvoice(user.uid, invoiceId)
-      applyLoadedInvoice(invoice.id, invoice.fileName, invoice.transactions)
-    } catch (cause) {
-      notifyError(cause)
-    } finally {
-      setInvoiceLoading(false)
-    }
-  }
-
-  const handleDeleteInvoice = async () => {
-    if (!user || !selectedInvoiceId) return
-
-    const label = selectedInvoice ? formatReferenceMonth(selectedInvoice.referenceMonth) : 'esta fatura'
-    const ok = await confirm({
-      title: 'Excluir fatura',
-      message: `A fatura de ${label} e todos os lançamentos dela serão apagados. As regras de categoria são mantidas.`,
-      confirmLabel: 'Excluir',
-      danger: true,
-    })
-    if (!ok) return
-
-    setDeleting(true)
-
-    try {
-      await deleteInvoice(user.uid, selectedInvoiceId)
-      const remainingInvoices = await listInvoices(user.uid)
-      setInvoices(remainingInvoices)
-
-      if (remainingInvoices.length > 0) {
-        const nextInvoice = await loadInvoice(user.uid, remainingInvoices[0].id)
-        applyLoadedInvoice(nextInvoice.id, nextInvoice.fileName, nextInvoice.transactions)
-      } else {
-        setSelectedInvoiceId('')
-        setFileName('')
-        setTransactions([])
-        resetFilters()
-      }
-      toast(`Fatura de ${label} excluída.`)
-    } catch (cause) {
-      notifyError(cause)
-    } finally {
-      setDeleting(false)
-    }
-  }
-
-  /**
-   * Salva a regra do estabelecimento no Firestore e atualiza
-   * todos os lançamentos do mesmo estabelecimento na fatura aberta.
-   */
-  const applyCategoryToMerchant = async (title: string, category: TransactionCategory) => {
-    if (!user) return
-
-    const key = merchantKey(title)
-    const affected = transactions.filter((item) => merchantKey(item.originalTitle) === key)
-
-    setTransactions((current) =>
-      current.map((item) => (merchantKey(item.originalTitle) === key ? { ...item, category } : item)),
-    )
-
-    setSavingRule(true)
-
-    try {
-      const rule = await saveCategoryRule(user.uid, title, category)
-      setRules((current) => sortRules([...current.filter((item) => item.id !== rule.id), rule]))
-
-      if (selectedInvoiceId && affected.length) {
-        await updateTransactionsCategory(
-          user.uid,
-          selectedInvoiceId,
-          affected.map((item) => item.id),
-          category,
-        )
-      }
-
-      toast(`${affected.length} lançamento(s) de "${affected[0]?.title ?? title}" agora em ${category}.`)
-    } catch (cause) {
-      notifyError(cause)
-    } finally {
-      setSavingRule(false)
-    }
-  }
-
-  const handleCategoryChange = (id: string, category: TransactionCategory) => {
-    const transaction = transactions.find((item) => item.id === id)
-    if (transaction) void applyCategoryToMerchant(transaction.originalTitle, category)
-  }
-
-  const handleRuleChange = (rule: CategoryRule, category: TransactionCategory) => {
-    void applyCategoryToMerchant(rule.sampleTitle, category)
-  }
-
-  const handleDeleteRule = async (rule: CategoryRule) => {
-    if (!user) return
-
-    const ok = await confirm({
-      title: 'Excluir regra',
-      message: `A regra "${rule.sampleTitle}" → ${rule.category} será excluída. Os lançamentos já categorizados não mudam.`,
-      confirmLabel: 'Excluir',
-      danger: true,
-    })
-    if (!ok) return
-
-    setSavingRule(true)
-
-    try {
-      await deleteCategoryRule(user.uid, rule.id)
-      setRules((current) => current.filter((item) => item.id !== rule.id))
-      toast('Regra excluída.')
-    } catch (cause) {
-      notifyError(cause)
-    } finally {
-      setSavingRule(false)
-    }
-  }
-
-  const handleReapplyRules = async () => {
-    if (!user || !selectedInvoiceId) return
-
-    const changes = transactions
-      .map((item) => ({ item, ruleCategory: ruleMap[merchantKey(item.originalTitle)] }))
-      .filter(({ item, ruleCategory }) => ruleCategory && ruleCategory !== item.category)
-
-    if (!changes.length) {
-      toast('A fatura já está de acordo com as regras.', 'info')
-      return
-    }
-
-    setSavingRule(true)
-
-    try {
-      const byCategory = new Map<TransactionCategory, string[]>()
-      changes.forEach(({ item, ruleCategory }) => {
-        const ids = byCategory.get(ruleCategory) ?? []
-        ids.push(item.id)
-        byCategory.set(ruleCategory, ids)
-      })
-
-      for (const [category, ids] of byCategory) {
-        await updateTransactionsCategory(user.uid, selectedInvoiceId, ids, category)
-      }
-
-      setTransactions((current) =>
-        current.map((item) => {
-          const ruleCategory = ruleMap[merchantKey(item.originalTitle)]
-          return ruleCategory ? { ...item, category: ruleCategory } : item
-        }),
-      )
-      toast(`${changes.length} lançamento(s) atualizado(s) pelas regras.`)
-    } catch (cause) {
-      notifyError(cause)
-    } finally {
-      setSavingRule(false)
-    }
-  }
-
   const openInvoice = (invoiceId: string) => {
     setView('invoice')
     void handleInvoiceSelection(invoiceId)
@@ -492,7 +255,7 @@ export default function Dashboard() {
 
         {/* ---------- Meu mês ---------- */}
         {!cloudLoading && view === 'month' && (
-          <MonthOverview
+          <MonthTab
             month={month}
             onMonthChange={setMonth}
             invoices={invoices}
@@ -506,20 +269,14 @@ export default function Dashboard() {
             onUnpay={handleUnpayBill}
             onOpenInvoice={openInvoice}
             onManage={() => setView('bills')}
-          >
-            <ExpensesPanel
-              month={month}
-              expenses={expenses}
-              saving={savingFinance}
-              onSave={handleSaveExpense}
-              onDelete={(expense) => void handleDeleteExpense(expense)}
-            />
-          </MonthOverview>
+            onSaveExpense={handleSaveExpense}
+            onDeleteExpense={(expense) => void handleDeleteExpense(expense)}
+          />
         )}
 
         {/* ---------- Contas e receitas ---------- */}
         {!cloudLoading && view === 'bills' && (
-          <BillsManager
+          <BillsTab
             month={month}
             bills={bills}
             incomes={incomes}
@@ -533,143 +290,43 @@ export default function Dashboard() {
 
         {/* ---------- Histórico ---------- */}
         {!cloudLoading && view === 'history' && (
-          <Suspense
-            fallback={
-              <>
-                <SkeletonCards count={4} />
-                <SkeletonPanel chart />
-              </>
-            }
-          >
-            <CashflowHistory data={financeData} />
-            {allInvoices === null ? (
-              <>
-                <SkeletonCards count={4} />
-                <SkeletonPanel chart />
-              </>
-            ) : (
-              <HistoryView invoices={allInvoices} />
-            )}
-          </Suspense>
+          <HistoryTab data={financeData} allInvoices={allInvoices} />
         )}
 
         {/* ---------- Cartão ---------- */}
         {!cloudLoading && view === 'invoice' && (
-          <>
-            <section className="cloud-toolbar">
-              <div className="cloud-toolbar-title">
-                <Cloud size={19} />
-                <div>
-                  <strong>Faturas do cartão</strong>
-                  <span>
-                    {invoices.length} fatura(s) · {rules.length} regra(s) de categoria
-                  </span>
-                </div>
-              </div>
-
-              <div className="cloud-toolbar-actions">
-                <label>
-                  <span>Fatura</span>
-                  <select
-                    value={selectedInvoiceId}
-                    disabled={invoiceLoading || invoices.length === 0}
-                    onChange={(event) => void handleInvoiceSelection(event.target.value)}
-                  >
-                    {invoices.length === 0 && <option value="">Nenhuma fatura salva</option>}
-                    {invoices.map((invoice) => (
-                      <option key={invoice.id} value={invoice.id}>
-                        {formatReferenceMonth(invoice.referenceMonth)} · {invoice.card} · {invoice.fileName}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <button
-                  type="button"
-                  className="delete-invoice-button"
-                  disabled={!selectedInvoiceId || deleting || invoiceLoading}
-                  onClick={() => void handleDeleteInvoice()}
-                >
-                  {deleting ? <LoaderCircle className="spin" size={16} /> : <Trash2 size={16} />}
-                  Excluir
-                </button>
-              </div>
-            </section>
-
-            <FileUpload fileName={fileName} loading={loading} error={error} onFile={handleFile} />
-
-            {invoiceLoading && (
-              <>
-                <SkeletonCards count={5} />
-                <SkeletonPanel lines={4} />
-              </>
-            )}
-
-            {!invoiceLoading && transactions.length > 0 && (
-              <>
-                <SummaryCards transactions={transactions} />
-                <BudgetPanel
-                  transactions={transactions}
-                  budget={budget}
-                  saving={savingBudget}
-                  onSave={(next) => void handleSaveBudget(next)}
-                />
-                <UncategorizedPanel
-                  transactions={transactions}
-                  saving={savingRule}
-                  onAssign={(title, category) => void applyCategoryToMerchant(title, category)}
-                />
-                <Suspense
-                  fallback={
-                    <section className="charts-grid">
-                      <SkeletonPanel chart />
-                      <SkeletonPanel chart />
-                    </section>
-                  }
-                >
-                  <section className="charts-grid">
-                    <CategoryChart transactions={transactions} />
-                    <SpendingChart transactions={transactions} />
-                  </section>
-                </Suspense>
-                <TopMerchants transactions={transactions} />
-                {invoiceMonth && <Installments transactions={transactions} invoiceMonth={invoiceMonth} />}
-                <TransactionsTable
-                  transactions={filtered}
-                  categories={categories}
-                  search={search}
-                  categoryFilter={categoryFilter}
-                  typeFilter={typeFilter}
-                  onSearch={setSearch}
-                  onCategoryFilter={setCategoryFilter}
-                  onTypeFilter={setTypeFilter}
-                  onCategoryChange={handleCategoryChange}
-                />
-                <CategoryRules
-                  rules={rules}
-                  transactions={transactions}
-                  saving={savingRule}
-                  onChange={handleRuleChange}
-                  onDelete={(rule) => void handleDeleteRule(rule)}
-                  onReapply={() => void handleReapplyRules()}
-                />
-              </>
-            )}
-
-            {!invoiceLoading && !transactions.length && !loading && (
-              <section className="welcome-state">
-                <div className="welcome-number">01</div>
-                <div>
-                  <span className="eyebrow">Primeira importação</span>
-                  <h2>Importe a fatura do seu cartão</h2>
-                  <p>
-                    Use o arquivo OFX exportado pelo seu banco (funciona com qualquer banco) ou o
-                    CSV do Nubank. A fatura e os lançamentos são salvos na sua área protegida.
-                  </p>
-                </div>
-              </section>
-            )}
-          </>
+          <InvoiceTab
+            invoices={invoices}
+            selectedInvoiceId={selectedInvoiceId}
+            invoiceMonth={invoiceMonth}
+            fileName={fileName}
+            transactions={transactions}
+            loading={loading}
+            error={error}
+            invoiceLoading={invoiceLoading}
+            deleting={deleting}
+            rules={rules}
+            budget={budget}
+            savingBudget={savingBudget}
+            savingRule={savingRule}
+            filtered={filtered}
+            categories={categories}
+            search={search}
+            categoryFilter={categoryFilter}
+            typeFilter={typeFilter}
+            onInvoiceSelection={(invoiceId) => void handleInvoiceSelection(invoiceId)}
+            onDeleteInvoice={() => void handleDeleteInvoice()}
+            onFile={(file) => void handleFile(file, ruleMap)}
+            onSaveBudget={(next) => void handleSaveBudget(next)}
+            onAssignCategory={(title, category) => void applyCategoryToMerchant(title, category)}
+            onSearch={setSearch}
+            onCategoryFilter={setCategoryFilter}
+            onTypeFilter={setTypeFilter}
+            onCategoryChange={handleCategoryChange}
+            onRuleChange={handleRuleChange}
+            onDeleteRule={(rule) => void deleteRule(rule)}
+            onReapplyRules={() => void handleReapplyRules()}
+          />
         )}
       </main>
 

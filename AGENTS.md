@@ -75,7 +75,7 @@ Sem o `.env.local`, a tela fica em branco: o `src/firebase/app.ts` lança erro s
 src/
 ├── main.tsx                 UiProvider > AuthProvider > App; aplica o tema; registra o service worker
 ├── App.tsx                  Só decide entre Login e Dashboard (Dashboard é carregado sob demanda)
-├── Dashboard.tsx            Área logada: estado, carregamento do Firestore e as 4 abas
+├── Dashboard.tsx            Área logada: carga inicial do Firestore e composição das 4 abas
 ├── App.css                  Só os @import de src/styles/ (ordem abaixo)
 ├── index.css                Reset/base; o @import do Google Fonts é a primeira regra
 ├── styles/                  CSS organizado por funcionalidade, na ordem em que é aplicado:
@@ -105,6 +105,15 @@ src/
 │   ├── AuthContext.tsx      Sessão do usuário
 │   └── UiContext.tsx        toast(), confirm() próprio e tema claro/escuro
 │
+├── hooks/                   Estado e operações por assunto (recebem uid/toast/confirm por parâmetro)
+│   ├── useBudget.ts             Orçamento por categoria
+│   ├── useCategorization.ts     Troca de categoria e regras de estabelecimento
+│   ├── useFinance.ts            Contas fixas, pagamentos, receitas e gastos avulsos
+│   ├── useInvoiceHistory.ts     Faturas completas (previsão e histórico)
+│   ├── useInvoices.ts           Lista de faturas, fatura aberta e importação
+│   ├── useRules.ts              Regras de categoria e merchantKey
+│   └── useTransactionFilters.ts Filtros da tabela de lançamentos
+│
 ├── services/
 │   ├── importService.ts         Escolhe o leitor pela extensão; conferência com o saldo do banco
 │   ├── ofxParser.ts             Leitor OFX (SGML e XML, UTF-8 ou Windows-1252)
@@ -118,6 +127,13 @@ src/
 │   └── authService.ts           Login e logout
 │
 ├── components/
+│   ├── dashboard/           Abas e cabeçalho do Dashboard (só props)
+│   │   ├── DashboardHeader.tsx  Cabeçalho/hero
+│   │   ├── ViewTabs.tsx         Navegação das abas e tipo View
+│   │   ├── MonthTab.tsx         Aba "Meu mês"
+│   │   ├── InvoiceTab.tsx       Aba "Cartão"
+│   │   ├── BillsTab.tsx         Aba "Contas"
+│   │   └── HistoryTab.tsx       Aba "Histórico" (lazy/Suspense dos gráficos)
 │   ├── Login.tsx
 │   ├── MonthOverview.tsx    Aba "Meu mês": resumo, previsão, vencimentos, receitas
 │   │                        (também exibe o ExpensesPanel via `children`)
@@ -253,20 +269,21 @@ Coleções novas dentro de `users/{uid}` já são cobertas por essas regras.
 - **CSS organizado por funcionalidade** em `src/styles/` (V4.3.1). A ordem dos arquivos é a ordem da cascata; `responsive.css` concentra as `@media` (com as exceções abaixo) e `theme-dark.css` todas as regras do tema escuro. A reorganização foi validada comparando o vencedor de cada seletor/propriedade em várias larguras antes e depois: o resultado efetivo da cascata não mudou.
 - **Exceções de cascata que continuam em `invoices.css`:** as `@media` de `.summary-grid` (1000, 760 e 480) e a de `.panel` (480) precisam ficar depois das regras comuns de `.month-kpis`, `.uncat-done`, `.bills-rule`, `.history-empty` e `.month-nav`. Por isso não foram para `responsive.css`; o bloco 480 está comentado lá indicando o motivo.
 - **`.summary-grid.skeleton-grid`** (em `feedback.css`) usa especificidade de duas classes para o `margin: 0 0 18px` vencer a regra de `.summary-grid` independentemente da ordem dos arquivos. O JSX continua usando só `skeleton-grid`.
-- **`Dashboard.tsx` está grande** (~890 linhas). Candidato a dividir em hooks (`useInvoices`, `useFinance`) e componentes por aba, sem mudar comportamento.
+- **`Dashboard.tsx` ainda tem ~336 linhas** (era ~890 antes dos lotes de refatoração). O que restou é a carga inicial em `[user]` e a composição das abas; candidato a extrair a carga inicial para um hook (`useDashboardData`) e ficar abaixo de ~250 linhas.
 - **Modo escuro** mexe em muitas cores. Podem existir pontos ainda claros demais.
 - Algumas **regras de categoria antigas** foram gravadas com acento quebrado (chave com "cra dito"). Podem ser excluídas pelo painel de regras.
 - O aviso de chunk acima de 500 kB vem do Firestore no `Dashboard` (565 kB) e do Recharts no `CategoricalChart` (305 kB).
 - **Classes usadas no JSX sem regra no CSS:** `cashflow-table`, `chart-panel`, `table-panel`, `history-chart`, `history-categories`, `history-recurring` e `muted-zero`. Não quebram o build; `cashflow-table` ainda herda as regras genéricas de `table/th/td`.
 - **`slate` agora tem regra:** `.stat-card.slate .stat-top` (`#475569`) em `invoices.css` e a equivalente `#94a3b8` em `theme-dark.css`. Antes o card "Lançamentos" (`SummaryCards.tsx`) e "Maior fatura" (`HistoryView.tsx`) ficavam sem cor.
-- Não há testes automatizados. Os cálculos de `monthPlan.ts`, `ofxParser.ts` e a duplicidade são bons candidatos a testes unitários (Vitest).
+- **Testes:** existe **Vitest** com `src/utils/errors.test.ts` (8 testes de `getErrorMessage`). Rode com `npm test` (`vitest run`). Ainda não há testes dos cálculos; `monthPlan.ts`, `ofxParser.ts` e a duplicidade são bons candidatos.
+- **`getErrorMessage` devolve texto vazio** quando o `Error` não tem mensagem (`new Error('')`). Isso faz o toast de erro aparecer sem texto; corrigir para cair na mensagem padrão.
 
 ---
 
 ## 9. Próximos passos sugeridos
 
 1. Validar a V4.3 no computador e no celular (modo escuro, navegação inferior, gastos avulsos, previsão).
-2. Dividir o `Dashboard.tsx` em hooks e componentes por aba, sem mudar comportamento.
-3. Testes unitários dos cálculos.
+2. Extrair a carga inicial do `Dashboard.tsx` para um hook (`useDashboardData`), sem mudar comportamento.
+3. Testes unitários dos cálculos (`monthPlan.ts`, `ofxParser.ts`, duplicidade).
 4. **V5:** metas de economia e alertas automáticos (categoria acima da média, conta subindo, vencimentos próximos).
 5. Depois: vários cartões, exportação para Excel, notificações de vencimento.
