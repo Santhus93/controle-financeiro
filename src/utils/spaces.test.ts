@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { userRoot, spaceRoot, scopeRoot } from '../firebase/paths'
 import type { ActiveScope } from '../types/Space'
