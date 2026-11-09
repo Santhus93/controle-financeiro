@@ -182,40 +182,43 @@ export function Login() {
 
       <section className="login-form-panel">
         <form className="login-card" onSubmit={handleSubmit}>
+          {mode === 'reset' && (
+            <button
+              type="button"
+              className="login-back-button"
+              onClick={() => switchMode('login')}
+            >
+              ← Voltar para entrar
+            </button>
+          )}
+
           <div className="login-card-icon"><LockKeyhole size={23} /></div>
           <span className="login-card-eyebrow">ACESSO SEGURO</span>
           <h2>{content.title}</h2>
           <p className="login-card-description">{content.description}</p>
 
-          <div className="login-mode-tabs" role="tablist" aria-label="Forma de acesso">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'login'}
-              className={mode === 'login' ? 'active' : ''}
-              onClick={() => switchMode('login')}
-            >
-              Entrar
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'signup'}
-              className={mode === 'signup' ? 'active' : ''}
-              onClick={() => switchMode('signup')}
-            >
-              Criar conta
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'reset'}
-              className={mode === 'reset' ? 'active' : ''}
-              onClick={() => switchMode('reset')}
-            >
-              Esqueci minha senha
-            </button>
-          </div>
+          {mode !== 'reset' && (
+            <div className="login-mode-tabs" role="tablist" aria-label="Forma de acesso">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'login'}
+                className={mode === 'login' ? 'active' : ''}
+                onClick={() => switchMode('login')}
+              >
+                Entrar
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'signup'}
+                className={mode === 'signup' ? 'active' : ''}
+                onClick={() => switchMode('signup')}
+              >
+                Criar conta
+              </button>
+            </div>
+          )}
 
           {mode === 'signup' && (
             <label className="login-field">
@@ -243,26 +246,40 @@ export function Login() {
           </label>
 
           {mode !== 'reset' && (
-            <label className="login-field">
-              <span>Senha</span>
-              <div className="password-field">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder={mode === 'signup' ? 'Crie uma senha' : 'Digite sua senha'}
-                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                />
-                <button
-                  type="button"
-                  className="password-toggle"
-                  onClick={() => setShowPassword((current) => !current)}
-                  aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </label>
+            <>
+              <label className="login-field">
+                <span>Senha</span>
+                <div className="password-field">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder={mode === 'signup' ? 'Crie uma senha' : 'Digite sua senha'}
+                    autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() => setShowPassword((current) => !current)}
+                    aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </label>
+
+              {mode === 'login' && (
+                <div className="login-forgot-wrapper">
+                  <button
+                    type="button"
+                    className="login-forgot-link"
+                    onClick={() => switchMode('reset')}
+                  >
+                    Esqueci minha senha
+                  </button>
+                </div>
+              )}
+            </>
           )}
 
           {mode === 'signup' && (
@@ -303,12 +320,6 @@ export function Login() {
                 Entrar com Google
               </button>
             </>
-          )}
-
-          {mode === 'reset' && (
-            <button type="button" className="login-link-button" onClick={() => switchMode('login')}>
-              Voltar para o login
-            </button>
           )}
         </form>
       </section>

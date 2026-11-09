@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { ChevronDown, Layers, Plus, User } from 'lucide-react'
+import { Check, ChevronDown, Pencil, Plus } from 'lucide-react'
 import { createSpace } from '../../services/spacesService'
 import type { ActiveScope, Space } from '../../types/Space'
 import { getErrorMessage } from '../../utils/errors'
+import { RenameSpaceDialog } from './RenameSpaceDialog'
 
 interface SpaceSwitcherProps {
   uid: string
@@ -10,7 +11,15 @@ interface SpaceSwitcherProps {
   activeScope: ActiveScope
   onScopeChange: (scope: ActiveScope) => void
   onSpacesChange: (spaces: Space[]) => void
+  onSpaceRenamed?: (space: Space) => void
   toast: (message: string, type?: 'success' | 'error' | 'info') => void
+}
+
+function getRoleLabel(space: Space, uid: string): string {
+  const role = space.roles?.[uid] ?? (space.ownerUid === uid ? 'owner' : 'viewer')
+  if (role === 'owner') return 'Dono'
+  if (role === 'editor') return 'Editor'
+  return 'Leitor'
 }
 
 /**
@@ -23,12 +32,14 @@ export function SpaceSwitcher({
   activeScope,
   onScopeChange,
   onSpacesChange,
+  onSpaceRenamed,
   toast,
 }: SpaceSwitcherProps) {
   const [open, setOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
   const [saving, setSaving] = useState(false)
+  const [renamingSpace, setRenamingSpace] = useState<Space | null>(null)
 
   const activeLabel =
     activeScope.kind === 'personal' ? 'Pessoal' : activeScope.space.name
@@ -68,11 +79,6 @@ export function SpaceSwitcher({
         aria-haspopup="listbox"
         title="Trocar espaço"
       >
-        {activeScope.kind === 'personal' ? (
-          <User size={13} />
-        ) : (
-          <Layers size={13} />
-        )}
         <span className="space-switcher-label">{activeLabel}</span>
         <ChevronDown size={12} className={open ? 'space-switcher-chevron open' : 'space-switcher-chevron'} />
       </button>
@@ -87,33 +93,82 @@ export function SpaceSwitcher({
           />
           <div className="space-switcher-menu" role="listbox" aria-label="Selecionar espaço">
             {/* Pessoal */}
-            <button
-              type="button"
+            <div
               role="option"
               aria-selected={activeScope.kind === 'personal'}
+              tabIndex={0}
               className={`space-switcher-item${activeScope.kind === 'personal' ? ' active' : ''}`}
               onClick={() => handleSelect({ kind: 'personal' })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  handleSelect({ kind: 'personal' })
+                }
+              }}
             >
-              <User size={13} />
-              Pessoal
-            </button>
+              <div className="space-switcher-item-info">
+                <span className="space-switcher-item-name">Pessoal</span>
+                <span className="space-switcher-item-sub">Pessoal · só você</span>
+              </div>
+              <div className="space-switcher-item-actions">
+                {activeScope.kind === 'personal' && (
+                  <span className="space-switcher-check" aria-hidden="true">
+                    <Check size={16} />
+                  </span>
+                )}
+              </div>
+            </div>
 
             {/* Espaços */}
-            {spaces.map((space) => (
-              <button
-                key={space.id}
-                type="button"
-                role="option"
-                aria-selected={activeScope.kind === 'space' && activeScope.space.id === space.id}
-                className={`space-switcher-item${
-                  activeScope.kind === 'space' && activeScope.space.id === space.id ? ' active' : ''
-                }`}
-                onClick={() => handleSelect({ kind: 'space', space })}
-              >
-                <Layers size={13} />
-                {space.name}
-              </button>
-            ))}
+            {spaces.map((space) => {
+              const isActive = activeScope.kind === 'space' && activeScope.space.id === space.id
+              const isOwner = space.ownerUid === uid || space.roles?.[uid] === 'owner'
+              const roleLabel = getRoleLabel(space, uid)
+
+              return (
+                <div
+                  key={space.id}
+                  role="option"
+                  aria-selected={isActive}
+                  tabIndex={0}
+                  className={`space-switcher-item${isActive ? ' active' : ''}`}
+                  onClick={() => handleSelect({ kind: 'space', space })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      handleSelect({ kind: 'space', space })
+                    }
+                  }}
+                >
+                  <div className="space-switcher-item-info">
+                    <span className="space-switcher-item-name">{space.name}</span>
+                    <span className="space-switcher-item-sub">Espaço compartilhado · {roleLabel}</span>
+                  </div>
+                  <div className="space-switcher-item-actions">
+                    {isActive && isOwner && (
+                      <button
+                        type="button"
+                        className="space-switcher-rename-btn"
+                        title="Renomear espaço"
+                        aria-label="Renomear espaço"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setOpen(false)
+                          setRenamingSpace(space)
+                        }}
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    )}
+                    {isActive && (
+                      <span className="space-switcher-check" aria-hidden="true">
+                        <Check size={16} />
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
 
             <div className="space-switcher-divider" />
 
@@ -154,12 +209,29 @@ export function SpaceSwitcher({
                 className="space-switcher-item space-switcher-new"
                 onClick={() => setCreating(true)}
               >
-                <Plus size={13} />
-                Novo espaço
+                <Plus size={14} />
+                <span>Novo espaço</span>
               </button>
             )}
           </div>
         </>
+      )}
+
+      {renamingSpace && (
+        <RenameSpaceDialog
+          space={renamingSpace}
+          onRenamed={(updated) => {
+            onSpacesChange(
+              spaces
+                .map((s) => (s.id === updated.id ? updated : s))
+                .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
+            )
+            onSpaceRenamed?.(updated)
+            setRenamingSpace(null)
+          }}
+          onClose={() => setRenamingSpace(null)}
+          toast={toast}
+        />
       )}
     </div>
   )

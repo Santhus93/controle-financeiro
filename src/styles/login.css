@@ -235,10 +235,10 @@
   cursor: wait;
 }
 
-/* Modos da tela: entrar, criar conta e recuperar senha */
+/* Modos da tela: apenas "Entrar" e "Criar conta" */
 .login-mode-tabs {
   display: grid;
-  grid-template-columns: repeat(3,minmax(0,1fr));
+  grid-template-columns: repeat(2,minmax(0,1fr));
   gap: 4px;
   padding: 4px;
   margin: 0 0 20px;
@@ -257,6 +257,7 @@
   line-height: 1.2;
   white-space: nowrap;
   transition: .18s;
+  cursor: pointer;
 }
 
 .login-mode-tabs button:hover {
@@ -267,6 +268,53 @@
   background: #fff;
   color: #5b21b6;
   box-shadow: 0 3px 10px rgba(43,25,66,.1);
+}
+
+/* Link "Esqueci minha senha" alinhado à direita abaixo da senha */
+.login-forgot-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -9px;
+  margin-bottom: 16px;
+}
+
+.login-forgot-link {
+  border: 0;
+  background: transparent;
+  color: #6d28d9;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 0;
+  text-decoration: none;
+  transition: color .18s;
+}
+
+.login-forgot-link:hover {
+  text-decoration: underline;
+  color: #5b21b6;
+}
+
+/* Botão "← Voltar para entrar" no topo no modo reset */
+.login-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin-bottom: 18px;
+  color: #6d28d9;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: color .18s;
+}
+
+.login-back-button:hover {
+  color: #5b21b6;
+  text-decoration: underline;
 }
 
 .login-hint {
@@ -333,22 +381,7 @@
   cursor: wait;
 }
 
-.login-link-button {
-  width: 100%;
-  margin-top: 16px;
-  border: 0;
-  background: transparent;
-  color: #6d28d9;
-  padding: 8px;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.login-link-button:hover {
-  text-decoration: underline;
-}
-
-/* Tema escuro (mantido aqui para não espalhar regras de login) */
+/* Tema escuro */
 html[data-theme="dark"] .login-mode-tabs {
   background: #2a1f40;
 }
@@ -365,6 +398,16 @@ html[data-theme="dark"] .login-mode-tabs button.active {
   background: var(--panel);
   color: var(--purple-2);
   box-shadow: none;
+}
+
+html[data-theme="dark"] .login-forgot-link,
+html[data-theme="dark"] .login-back-button {
+  color: var(--purple-2, #a78bfa);
+}
+
+html[data-theme="dark"] .login-forgot-link:hover,
+html[data-theme="dark"] .login-back-button:hover {
+  color: #c4b5fd;
 }
 
 html[data-theme="dark"] .login-hint,
@@ -393,13 +436,30 @@ html[data-theme="dark"] .login-google:hover:not(:disabled) {
   background: #2a1f40;
 }
 
-html[data-theme="dark"] .login-link-button {
-  color: var(--purple-2);
-}
-
+/* Largura de celular (até 420px) e telas pequenas */
 @media (max-width: 520px) {
   .login-mode-tabs button {
     padding: 8px 4px;
-    font-size: 11px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 420px) {
+  .login-card {
+    padding: 28px 20px;
+    border-radius: 18px;
+  }
+
+  .login-form-panel {
+    padding: 20px 12px;
+  }
+
+  .login-forgot-link {
+    font-size: 12px;
+  }
+
+  .login-back-button {
+    font-size: 12.5px;
+    margin-bottom: 14px;
   }
 }
