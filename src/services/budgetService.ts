@@ -1,5 +1,6 @@
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { db } from '../firebase/firebase'
+import { userRoot } from '../firebase/paths'
 import type { TransactionCategory } from '../types/Transaction'
 
 export interface Budget {
@@ -12,7 +13,7 @@ export interface Budget {
 export const EMPTY_BUDGET: Budget = { monthlyLimit: 0, categories: {} }
 
 function budgetDocument(uid: string) {
-  return doc(db, 'users', uid, 'settings', 'budget')
+  return doc(db, userRoot(uid), 'settings', 'budget')
 }
 
 function sanitize(value: unknown): number {

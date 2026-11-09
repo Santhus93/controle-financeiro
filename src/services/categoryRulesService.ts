@@ -9,6 +9,7 @@ import {
   writeBatch,
 } from 'firebase/firestore'
 import { db } from '../firebase/firebase'
+import { userRoot } from '../firebase/paths'
 import type { TransactionCategory } from '../types/Transaction'
 import { merchantKey, type CategoryRuleMap } from './categoryEngine'
 
@@ -21,7 +22,7 @@ export interface CategoryRule {
 }
 
 function rulesCollection(uid: string) {
-  return collection(db, 'users', uid, 'categoryRules')
+  return collection(db, userRoot(uid), 'categoryRules')
 }
 
 export function ruleIdFromPattern(pattern: string): string {

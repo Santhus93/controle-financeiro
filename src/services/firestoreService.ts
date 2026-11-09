@@ -11,6 +11,7 @@ import {
   writeBatch,
 } from 'firebase/firestore'
 import { db } from '../firebase/firebase'
+import { userRoot } from '../firebase/paths'
 import type { InvoiceSummary, SaveInvoiceResult, SavedInvoice } from '../types/Invoice'
 import type { Transaction } from '../types/Transaction'
 import { getInvoiceMonth } from '../utils/invoiceReference'
@@ -20,15 +21,15 @@ const FIRESTORE_BATCH_LIMIT = 450
 type BatchOperation = (batch: ReturnType<typeof writeBatch>) => void
 
 function invoicesCollection(uid: string) {
-  return collection(db, 'users', uid, 'invoices')
+  return collection(db, userRoot(uid), 'invoices')
 }
 
 function invoiceDocument(uid: string, invoiceId: string) {
-  return doc(db, 'users', uid, 'invoices', invoiceId)
+  return doc(db, userRoot(uid), 'invoices', invoiceId)
 }
 
 function transactionsCollection(uid: string, invoiceId: string) {
-  return collection(db, 'users', uid, 'invoices', invoiceId, 'transactions')
+  return collection(db, userRoot(uid), 'invoices', invoiceId, 'transactions')
 }
 
 function normalizeForFingerprint(value: string): string {

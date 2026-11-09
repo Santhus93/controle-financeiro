@@ -1,16 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
-import {
-  BarChart3,
-  CalendarDays,
-  Cloud,
-  CreditCard,
-  LoaderCircle,
-  LogOut,
-  Moon,
-  Receipt,
-  Sun,
-  Trash2,
-} from 'lucide-react'
+import { Cloud, LoaderCircle, Trash2 } from 'lucide-react'
+import { DashboardHeader } from './components/dashboard/DashboardHeader'
+import { ViewTabs, type View } from './components/dashboard/ViewTabs'
 import { BillsManager } from './components/BillsManager'
 import { BudgetPanel } from './components/BudgetPanel'
 import { CategoryRules } from './components/CategoryRules'
@@ -25,7 +16,9 @@ import { TransactionsTable } from './components/TransactionsTable'
 import { UncategorizedPanel } from './components/UncategorizedPanel'
 import { useAuth } from './contexts/AuthContext'
 import { useUi } from './contexts/UiContext'
-import { EMPTY_BUDGET, loadBudget, saveBudget, type Budget } from './services/budgetService'
+import { useBudget } from './hooks/useBudget'
+import { useTransactionFilters } from './hooks/useTransactionFilters'
+import { loadBudget } from './services/budgetService'
 import {
   clearLegacyLocalRules,
   detectCategory,
@@ -95,8 +88,6 @@ const CashflowHistory = lazy(() =>
   import('./components/CashflowHistory').then((module) => ({ default: module.CashflowHistory })),
 )
 
-type View = 'month' | 'invoice' | 'bills' | 'history'
-
 function formatReferenceMonth(referenceMonth: string): string {
   return formatMonthLabel(referenceMonth)
 }
@@ -120,19 +111,28 @@ export default function Dashboard() {
   const [deleting, setDeleting] = useState(false)
   const [savingRule, setSavingRule] = useState(false)
   const [error, setError] = useState('')
-  const [search, setSearch] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState('all')
-  const [typeFilter, setTypeFilter] = useState('all')
   const [view, setView] = useState<View>('month')
   const [allInvoices, setAllInvoices] = useState<SavedInvoice[] | null>(null)
-  const [budget, setBudget] = useState<Budget>(EMPTY_BUDGET)
-  const [savingBudget, setSavingBudget] = useState(false)
   const [month, setMonth] = useState(currentMonth())
   const [bills, setBills] = useState<Bill[]>([])
   const [payments, setPayments] = useState<BillPayment[]>([])
   const [incomes, setIncomes] = useState<Income[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [savingFinance, setSavingFinance] = useState(false)
+
+  const {
+    search,
+    categoryFilter,
+    typeFilter,
+    categories,
+    filtered,
+    resetFilters,
+    setSearch,
+    setCategoryFilter,
+    setTypeFilter,
+  } = useTransactionFilters(transactions)
+
+  const { budget, savingBudget, saveBudget: handleSaveBudget, setBudget } = useBudget()
 
   const ruleMap = useMemo(() => rulesToMap(rules), [rules])
   const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId)
@@ -147,25 +147,6 @@ export default function Dashboard() {
   const forecast = useMemo(
     () => (allInvoices ? computeForecast(addMonths(month, 1), financeData, allInvoices) : null),
     [allInvoices, financeData, month],
-  )
-
-  const categories = useMemo(
-    () => [...new Set(transactions.map((item) => item.category))].sort(),
-    [transactions],
-  )
-
-  const filtered = useMemo(
-    () =>
-      transactions.filter((item) => {
-        const matchesSearch = item.originalTitle
-          .toLowerCase()
-          .includes(search.trim().toLowerCase())
-        const matchesCategory =
-          categoryFilter === 'all' || item.category === categoryFilter
-        const matchesType = typeFilter === 'all' || item.type === typeFilter
-        return matchesSearch && matchesCategory && matchesType
-      }),
-    [transactions, search, categoryFilter, typeFilter],
   )
 
   const notifyError = (cause: unknown) => toast(getErrorMessage(cause), 'error')
@@ -195,12 +176,6 @@ export default function Dashboard() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, view, allInvoices, cloudLoading])
-
-  const resetFilters = () => {
-    setSearch('')
-    setCategoryFilter('all')
-    setTypeFilter('all')
-  }
 
   const applyLoadedInvoice = (
     invoiceId: string,
@@ -421,22 +396,6 @@ export default function Dashboard() {
     }
   }
 
-  const handleSaveBudget = async (next: Budget) => {
-    if (!user) return
-
-    setSavingBudget(true)
-
-    try {
-      const saved = await saveBudget(user.uid, next)
-      setBudget(saved)
-      toast('Orçamento salvo.')
-    } catch (cause) {
-      notifyError(cause)
-    } finally {
-      setSavingBudget(false)
-    }
-  }
-
   const handleCategoryChange = (id: string, category: TransactionCategory) => {
     const transaction = transactions.find((item) => item.id === id)
     if (transaction) void applyCategoryToMerchant(transaction.originalTitle, category)
@@ -617,69 +576,24 @@ export default function Dashboard() {
 
   return (
     <div className="app-shell">
-      <header className="hero">
-        <div className="hero-inner">
-          <div>
-            <div className="hero-topline">
-              <span className="brand-pill">CONTROLE FINANCEIRO</span>
-              <div className="user-session">
-                <span>{user.email}</span>
-                <button
-                  type="button"
-                  className="theme-toggle"
-                  onClick={toggleTheme}
-                  aria-label={theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'}
-                  title={theme === 'dark' ? 'Tema claro' : 'Tema escuro'}
-                >
-                  {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-                </button>
-                <button type="button" onClick={() => void logout()}>
-                  <LogOut size={15} /> Sair
-                </button>
-              </div>
-            </div>
-            <h1>Seu mês inteiro, em um só lugar.</h1>
-            <p>
-              Receitas, fatura do cartão, contas fixas e gastos avulsos juntos, para você saber
-              quanto entra, quanto sai e quanto sobra.
-            </p>
-          </div>
-
-          <div className="reference-box">
-            <span>{view === 'invoice' ? 'Fatura analisada' : 'Mês em foco'}</span>
-            <strong>
-              {view === 'invoice'
-                ? invoiceMonth
-                  ? formatReferenceMonth(invoiceMonth)
-                  : 'Nenhuma fatura'
-                : formatReferenceMonth(month)}
-            </strong>
-            <small>
-              {view === 'invoice'
-                ? `${selectedInvoice?.card ? `${selectedInvoice.card} · ` : ''}${
-                    dueDateLabel ? `Vencimento ${dueDateLabel} · ` : ''
-                  }${fileName || 'Importe um arquivo para começar'}`
-                : `${invoices.length} fatura(s) · ${bills.length} conta(s) fixa(s) · ${incomes.length} receita(s)`}
-            </small>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader
+        email={user.email}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onLogout={() => void logout()}
+        view={view}
+        month={month}
+        invoiceMonth={invoiceMonth}
+        selectedInvoice={selectedInvoice}
+        dueDateLabel={dueDateLabel}
+        fileName={fileName}
+        invoiceCount={invoices.length}
+        billCount={bills.length}
+        incomeCount={incomes.length}
+      />
 
       <main className="container-app">
-        <nav className="view-tabs four" aria-label="Navegação principal">
-          <button type="button" className={view === 'month' ? 'active' : ''} onClick={() => setView('month')}>
-            <CalendarDays size={18} /> <span>Meu mês</span>
-          </button>
-          <button type="button" className={view === 'invoice' ? 'active' : ''} onClick={() => setView('invoice')}>
-            <CreditCard size={18} /> <span>Cartão</span>
-          </button>
-          <button type="button" className={view === 'bills' ? 'active' : ''} onClick={() => setView('bills')}>
-            <Receipt size={18} /> <span>Contas</span>
-          </button>
-          <button type="button" className={view === 'history' ? 'active' : ''} onClick={() => setView('history')}>
-            <BarChart3 size={18} /> <span>Histórico</span>
-          </button>
-        </nav>
+        <ViewTabs view={view} onChange={setView} />
 
         {busy && (
           <div className="saving-indicator" aria-live="polite">

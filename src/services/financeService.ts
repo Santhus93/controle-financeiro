@@ -10,6 +10,7 @@ import {
   writeBatch,
 } from 'firebase/firestore'
 import { db } from '../firebase/firebase'
+import { userRoot } from '../firebase/paths'
 import type {
   Bill,
   BillCategory,
@@ -24,7 +25,7 @@ import type {
 import type { TransactionCategory } from '../types/Transaction'
 
 function userCollection(uid: string, name: 'bills' | 'billPayments' | 'incomes' | 'expenses') {
-  return collection(db, 'users', uid, name)
+  return collection(db, userRoot(uid), name)
 }
 
 // ---------- Contas fixas ----------
