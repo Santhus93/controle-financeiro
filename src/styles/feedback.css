@@ -179,7 +179,9 @@
 }
 
 /* ---------- Esqueleto de carregamento ---------- */
-.skeleton-grid {
+/* Especificidade .summary-grid.skeleton-grid: vence a margem de .summary-grid
+   (invoices.css) sem depender da ordem dos arquivos. */
+.summary-grid.skeleton-grid {
   margin: 0 0 18px;
 }
 

@@ -79,16 +79,23 @@ src/
 ├── App.css                  Só os @import de src/styles/ (ordem abaixo)
 ├── index.css                Reset/base; o @import do Google Fonts é a primeira regra
 ├── styles/                  CSS organizado por funcionalidade, na ordem em que é aplicado:
-│   ├── base.css             Variáveis :root, reset, containers, .panel, botões e campos
-│   ├── layout.css           .hero*, .reference-box, .user-session, .view-tabs*, footer
+│   ├── base.css             Variáveis :root, reset, .app-shell, .container-app, .panel,
+│   │                        .panel-heading, .eyebrow, .button-primary e campos de formulário
+│   ├── layout.css           .hero*, .reference-box, .user-session, .view-tabs*, .cloud-message,
+│   │                        .saving-indicator e footer
 │   ├── feedback.css         Toast, dialog e skeleton
-│   ├── login.css            Tela de login
-│   ├── invoices.css         Upload, cloud-toolbar, stat-card, gráficos, tabelas, parcelas
+│   ├── login.css            Tela de login (tudo de Login.tsx)
+│   ├── invoices.css         Upload, cloud-toolbar, stat-card, gráficos, TopMerchants,
+│   │                        Installments, tabela, não categorizados e regras de categoria;
+│   │                        guarda as @media de cascata de .summary-grid e .panel
 │   ├── budget.css           Orçamento por categoria (.budget-*)
-│   ├── month.css            Meu mês, contas fixas, receitas, avulsos e previsão
-│   ├── history.css          Histórico do cartão e do mês
-│   ├── responsive.css       Todas as @media (1000 → 900 → 760 → 520 → 480 → 420)
-│   └── theme-dark.css       Todas as regras html[data-theme="dark"]
+│   ├── month.css            .month-*, .due-*, .status-badge, .forecast-*, .finance-*,
+│   │                        .bills-* e .expenses-*
+│   ├── history.css          .history-*, .recurring-*, .var-badge, .diff-*, .total-row,
+│   │                        .cashflow-* e .section-divider
+│   ├── responsive.css       @media agrupadas por breakpoint (1000 → 900 → 760 → 520 → 420);
+│   │                        o 480 de .summary-grid/.panel fica em invoices.css (cascata)
+│   └── theme-dark.css       Todas as regras html[data-theme="dark"], por último
 │
 ├── firebase/
 │   ├── app.ts               initializeApp + Auth (carregado já no login)
@@ -243,7 +250,9 @@ Coleções novas dentro de `users/{uid}` já são cobertas por essas regras.
 
 ## 8. Pontos conhecidos e dívidas técnicas
 
-- **CSS organizado por funcionalidade** em `src/styles/` (V4.3.1). A ordem dos arquivos é a ordem da cascata; `responsive.css` concentra todas as `@media` e `theme-dark.css` todas as regras do tema escuro. A reorganização foi validada comparando o vencedor de cada seletor/propriedade em várias larguras antes e depois: o resultado efetivo da cascata não mudou.
+- **CSS organizado por funcionalidade** em `src/styles/` (V4.3.1). A ordem dos arquivos é a ordem da cascata; `responsive.css` concentra as `@media` (com as exceções abaixo) e `theme-dark.css` todas as regras do tema escuro. A reorganização foi validada comparando o vencedor de cada seletor/propriedade em várias larguras antes e depois: o resultado efetivo da cascata não mudou.
+- **Exceções de cascata que continuam em `invoices.css`:** as `@media` de `.summary-grid` (1000, 760 e 480) e a de `.panel` (480) precisam ficar depois das regras comuns de `.month-kpis`, `.uncat-done`, `.bills-rule`, `.history-empty` e `.month-nav`. Por isso não foram para `responsive.css`; o bloco 480 está comentado lá indicando o motivo.
+- **`.summary-grid.skeleton-grid`** (em `feedback.css`) usa especificidade de duas classes para o `margin: 0 0 18px` vencer a regra de `.summary-grid` independentemente da ordem dos arquivos. O JSX continua usando só `skeleton-grid`.
 - **`Dashboard.tsx` está grande** (~890 linhas). Candidato a dividir em hooks (`useInvoices`, `useFinance`) e componentes por aba, sem mudar comportamento.
 - **Modo escuro** mexe em muitas cores. Podem existir pontos ainda claros demais.
 - Algumas **regras de categoria antigas** foram gravadas com acento quebrado (chave com "cra dito"). Podem ser excluídas pelo painel de regras.

@@ -78,6 +78,7 @@ import type { InvoiceSummary, SavedInvoice } from './types/Invoice'
 import type { Transaction, TransactionCategory } from './types/Transaction'
 import { addMonths, formatDueDate, formatMonthLabel } from './utils/invoiceReference'
 import { computeForecast, currentMonth } from './utils/monthPlan'
+import { getErrorMessage } from './utils/errors'
 import packageJson from '../package.json'
 
 // Componentes com gráficos (Recharts) só são baixados quando aparecem na tela.
@@ -98,11 +99,6 @@ type View = 'month' | 'invoice' | 'bills' | 'history'
 
 function formatReferenceMonth(referenceMonth: string): string {
   return formatMonthLabel(referenceMonth)
-}
-
-function getErrorMessage(cause: unknown): string {
-  if (cause instanceof Error) return cause.message
-  return 'Ocorreu uma falha ao acessar os dados na nuvem.'
 }
 
 /**

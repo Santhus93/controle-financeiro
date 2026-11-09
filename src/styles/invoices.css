@@ -916,3 +916,29 @@ td {
 .stat-card.slate .stat-top {
   color: #475569;
 }
+
+/* ---------- Regras de largura mantidas aqui (fora de responsive.css) ----------
+   .month-kpis (month.css) e .uncat-done (acima) vêm depois e vencem
+   grid-template-columns/padding com a mesma especificidade. Mover estas @media
+   para o fim da cascata mudaria o visual. Ver responsive.css. */
+@media (max-width: 1000px) {
+  .summary-grid {
+    grid-template-columns: repeat(3,1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .summary-grid {
+    grid-template-columns: repeat(2,1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel {
+    padding: 17px;
+  }
+}

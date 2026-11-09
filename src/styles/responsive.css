@@ -1,10 +1,7 @@
-/* Media queries agrupadas por breakpoint (1000, 900, 760, 520, 480, 420) */
+/* Media queries agrupadas por breakpoint (1000, 900, 760, 520, 420).
+   O breakpoint 480 está em invoices.css por conflito de cascata. */
 
 @media (max-width: 1000px) {
-  .summary-grid {
-    grid-template-columns: repeat(3,1fr);
-  }
-
   .installment-grid {
     grid-template-columns: repeat(2,1fr);
   }
@@ -84,10 +81,6 @@
 
   .button-primary {
     width: 100%;
-  }
-
-  .summary-grid {
-    grid-template-columns: repeat(2,1fr);
   }
 
   .filters {
@@ -488,15 +481,10 @@
   }
 }
 
-@media (max-width: 480px) {
-  .summary-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .panel {
-    padding: 17px;
-  }
-}
+/* @media (max-width: 480px): .summary-grid e .panel ficaram em invoices.css.
+   Regras comuns posteriores (.month-kpis, .uncat-done, .bills-rule, .history-empty
+   e .month-nav) vencem a mesma propriedade com a mesma especificidade; mover para
+   cá mudaria o visual. Ver comentário em invoices.css. */
 
 @media (max-width: 420px) {
   .view-tabs.four button svg {
