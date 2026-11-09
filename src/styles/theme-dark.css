@@ -201,3 +201,48 @@ html[data-theme="dark"] .skeleton-block {
   background: linear-gradient(90deg,#241c33 25%,#2e2540 50%,#241c33 75%);
   background-size: 200% 100%;
 }
+
+
+/* V5.1 — SpaceSwitcher */
+html[data-theme="dark"] .space-switcher-menu {
+  background: var(--panel);
+  border-color: var(--line);
+  box-shadow: 0 10px 32px rgba(0,0,0,.35);
+}
+
+html[data-theme="dark"] .space-switcher-item {
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .space-switcher-item:hover {
+  background: #2a1f40;
+  color: var(--purple-2);
+}
+
+html[data-theme="dark"] .space-switcher-item.active {
+  background: var(--purple);
+  color: #fff;
+}
+
+html[data-theme="dark"] .space-switcher-item.space-switcher-new {
+  color: var(--purple-2);
+}
+
+html[data-theme="dark"] .space-switcher-item.space-switcher-new:hover {
+  background: #2a1f40;
+}
+
+html[data-theme="dark"] .space-switcher-input {
+  background: var(--bg);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+html[data-theme="dark"] .space-switcher-cancel-btn {
+  color: var(--muted);
+  border-color: var(--line);
+}
+
+html[data-theme="dark"] .space-switcher-cancel-btn:hover:not(:disabled) {
+  background: #2a1f40;
+}

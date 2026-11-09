@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function roleIn(spaceId) {
+      return get(/databases/$(database)/documents/spaces/$(spaceId)).data.roles.get(request.auth.uid, null);
+    }
+
+    match /users/{userId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+      match /{document=**} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+    }
+
+    match /spaces/{spaceId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.memberUids;
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.memberUids == [request.auth.uid]
+        && request.resource.data.roles.keys().hasOnly([request.auth.uid])
+        && request.resource.data.roles[request.auth.uid] == 'owner';
+      allow update: if signedIn()
+        && resource.data.roles.get(request.auth.uid, null) == 'owner'
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.memberUids == resource.data.memberUids
+        && request.resource.data.roles == resource.data.roles;
+      allow delete: if false;
+
+      match /{sub}/{document=**} {
+        allow read: if signedIn() && roleIn(spaceId) != null;
+        allow write: if signedIn() && roleIn(spaceId) in ['owner', 'editor'];
+      }
+    }
+  }
+}

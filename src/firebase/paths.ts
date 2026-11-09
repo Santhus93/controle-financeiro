@@ -1,10 +1,22 @@
 /**
  * Caminhos raiz do Firestore.
  *
- * Hoje os dados ficam em `users/{uid}`. A ideia é que, quando os "Espaços"
- * existirem, o mesmo serviço possa apontar para `spaces/{spaceId}` sem
- * espalhar a montagem do caminho por todos os serviços.
+ * - Dados pessoais: `users/{uid}`
+ * - Espaços compartilhados: `spaces/{spaceId}`
+ *
+ * `scopeRoot` centraliza a escolha para que os serviços não precisem
+ * conhecer o tipo do escopo.
  */
+import type { ActiveScope } from '../types/Space'
+
 export function userRoot(uid: string): string {
   return `users/${uid}`
+}
+
+export function spaceRoot(spaceId: string): string {
+  return `spaces/${spaceId}`
+}
+
+export function scopeRoot(uid: string, scope: ActiveScope): string {
+  return scope.kind === 'space' ? spaceRoot(scope.space.id) : userRoot(uid)
 }

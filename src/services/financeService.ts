@@ -10,7 +10,6 @@ import {
   writeBatch,
 } from 'firebase/firestore'
 import { db } from '../firebase/firebase'
-import { userRoot } from '../firebase/paths'
 import type {
   Bill,
   BillCategory,
@@ -24,14 +23,14 @@ import type {
 } from '../types/Finance'
 import type { TransactionCategory } from '../types/Transaction'
 
-function userCollection(uid: string, name: 'bills' | 'billPayments' | 'incomes' | 'expenses') {
-  return collection(db, userRoot(uid), name)
+function rootCollection(root: string, name: 'bills' | 'billPayments' | 'incomes' | 'expenses') {
+  return collection(db, root, name)
 }
 
 // ---------- Contas fixas ----------
 
-export async function listBills(uid: string): Promise<Bill[]> {
-  const snapshot = await getDocs(userCollection(uid, 'bills'))
+export async function listBills(root: string): Promise<Bill[]> {
+  const snapshot = await getDocs(rootCollection(root, 'bills'))
   return snapshot.docs.map((item) => {
     const data = item.data()
     return {
@@ -46,8 +45,8 @@ export async function listBills(uid: string): Promise<Bill[]> {
   })
 }
 
-export async function saveBill(uid: string, bill: NewBill): Promise<Bill> {
-  const ref = bill.id ? doc(userCollection(uid, 'bills'), bill.id) : doc(userCollection(uid, 'bills'))
+export async function saveBill(root: string, bill: NewBill): Promise<Bill> {
+  const ref = bill.id ? doc(rootCollection(root, 'bills'), bill.id) : doc(rootCollection(root, 'bills'))
   const data = {
     name: bill.name.trim(),
     category: bill.category,
@@ -62,18 +61,18 @@ export async function saveBill(uid: string, bill: NewBill): Promise<Bill> {
 }
 
 /** Exclui a conta e todos os pagamentos registrados dela. */
-export async function deleteBill(uid: string, billId: string): Promise<void> {
-  const payments = await getDocs(query(userCollection(uid, 'billPayments'), where('billId', '==', billId)))
+export async function deleteBill(root: string, billId: string): Promise<void> {
+  const payments = await getDocs(query(rootCollection(root, 'billPayments'), where('billId', '==', billId)))
   const batch = writeBatch(db)
   payments.docs.forEach((item) => batch.delete(item.ref))
-  batch.delete(doc(userCollection(uid, 'bills'), billId))
+  batch.delete(doc(rootCollection(root, 'bills'), billId))
   await batch.commit()
 }
 
 // ---------- Pagamentos do mês ----------
 
-export async function listBillPayments(uid: string): Promise<BillPayment[]> {
-  const snapshot = await getDocs(userCollection(uid, 'billPayments'))
+export async function listBillPayments(root: string): Promise<BillPayment[]> {
+  const snapshot = await getDocs(rootCollection(root, 'billPayments'))
   return snapshot.docs.map((item) => {
     const data = item.data()
     return {
@@ -86,13 +85,13 @@ export async function listBillPayments(uid: string): Promise<BillPayment[]> {
 }
 
 export async function markBillPaid(
-  uid: string,
+  root: string,
   billId: string,
   month: string,
   amount: number,
 ): Promise<BillPayment> {
   const id = `${month}_${billId}`
-  await setDoc(doc(userCollection(uid, 'billPayments'), id), {
+  await setDoc(doc(rootCollection(root, 'billPayments'), id), {
     billId,
     month,
     amount,
@@ -101,14 +100,14 @@ export async function markBillPaid(
   return { id, billId, month, amount }
 }
 
-export async function unmarkBillPaid(uid: string, billId: string, month: string): Promise<void> {
-  await deleteDoc(doc(userCollection(uid, 'billPayments'), `${month}_${billId}`))
+export async function unmarkBillPaid(root: string, billId: string, month: string): Promise<void> {
+  await deleteDoc(doc(rootCollection(root, 'billPayments'), `${month}_${billId}`))
 }
 
 // ---------- Receitas ----------
 
-export async function listIncomes(uid: string): Promise<Income[]> {
-  const snapshot = await getDocs(userCollection(uid, 'incomes'))
+export async function listIncomes(root: string): Promise<Income[]> {
+  const snapshot = await getDocs(rootCollection(root, 'incomes'))
   return snapshot.docs.map((item) => {
     const data = item.data()
     return {
@@ -122,10 +121,10 @@ export async function listIncomes(uid: string): Promise<Income[]> {
   })
 }
 
-export async function saveIncome(uid: string, income: NewIncome): Promise<Income> {
+export async function saveIncome(root: string, income: NewIncome): Promise<Income> {
   const ref = income.id
-    ? doc(userCollection(uid, 'incomes'), income.id)
-    : doc(userCollection(uid, 'incomes'))
+    ? doc(rootCollection(root, 'incomes'), income.id)
+    : doc(rootCollection(root, 'incomes'))
   const data = {
     name: income.name.trim(),
     amount: income.amount,
@@ -138,14 +137,14 @@ export async function saveIncome(uid: string, income: NewIncome): Promise<Income
   return { id: ref.id, ...data }
 }
 
-export async function deleteIncome(uid: string, incomeId: string): Promise<void> {
-  await deleteDoc(doc(userCollection(uid, 'incomes'), incomeId))
+export async function deleteIncome(root: string, incomeId: string): Promise<void> {
+  await deleteDoc(doc(rootCollection(root, 'incomes'), incomeId))
 }
 
 // ---------- Gastos avulsos ----------
 
-export async function listExpenses(uid: string): Promise<Expense[]> {
-  const snapshot = await getDocs(userCollection(uid, 'expenses'))
+export async function listExpenses(root: string): Promise<Expense[]> {
+  const snapshot = await getDocs(rootCollection(root, 'expenses'))
   return snapshot.docs.map((item) => {
     const data = item.data()
     return {
@@ -159,10 +158,10 @@ export async function listExpenses(uid: string): Promise<Expense[]> {
   })
 }
 
-export async function saveExpense(uid: string, expense: NewExpense): Promise<Expense> {
+export async function saveExpense(root: string, expense: NewExpense): Promise<Expense> {
   const ref = expense.id
-    ? doc(userCollection(uid, 'expenses'), expense.id)
-    : doc(userCollection(uid, 'expenses'))
+    ? doc(rootCollection(root, 'expenses'), expense.id)
+    : doc(rootCollection(root, 'expenses'))
   const data = {
     description: expense.description.trim(),
     amount: expense.amount,
@@ -175,6 +174,6 @@ export async function saveExpense(uid: string, expense: NewExpense): Promise<Exp
   return { id: ref.id, ...data }
 }
 
-export async function deleteExpense(uid: string, expenseId: string): Promise<void> {
-  await deleteDoc(doc(userCollection(uid, 'expenses'), expenseId))
+export async function deleteExpense(root: string, expenseId: string): Promise<void> {
+  await deleteDoc(doc(rootCollection(root, 'expenses'), expenseId))
 }

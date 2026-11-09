@@ -1,6 +1,5 @@
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { db } from '../firebase/firebase'
-import { userRoot } from '../firebase/paths'
 import type { TransactionCategory } from '../types/Transaction'
 
 export interface Budget {
@@ -12,8 +11,8 @@ export interface Budget {
 
 export const EMPTY_BUDGET: Budget = { monthlyLimit: 0, categories: {} }
 
-function budgetDocument(uid: string) {
-  return doc(db, userRoot(uid), 'settings', 'budget')
+function budgetDocument(root: string) {
+  return doc(db, root, 'settings', 'budget')
 }
 
 function sanitize(value: unknown): number {
@@ -30,8 +29,8 @@ function cleanCategories(raw: Record<string, unknown>): Budget['categories'] {
   return categories
 }
 
-export async function loadBudget(uid: string): Promise<Budget> {
-  const snapshot = await getDoc(budgetDocument(uid))
+export async function loadBudget(root: string): Promise<Budget> {
+  const snapshot = await getDoc(budgetDocument(root))
   if (!snapshot.exists()) return EMPTY_BUDGET
 
   const data = snapshot.data()
@@ -41,13 +40,13 @@ export async function loadBudget(uid: string): Promise<Budget> {
   }
 }
 
-export async function saveBudget(uid: string, budget: Budget): Promise<Budget> {
+export async function saveBudget(root: string, budget: Budget): Promise<Budget> {
   const clean: Budget = {
     monthlyLimit: sanitize(budget.monthlyLimit),
     categories: cleanCategories(budget.categories as Record<string, unknown>),
   }
 
-  await setDoc(budgetDocument(uid), { ...clean, updatedAt: serverTimestamp() })
+  await setDoc(budgetDocument(root), { ...clean, updatedAt: serverTimestamp() })
   return clean
 }
 

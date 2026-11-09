@@ -7,7 +7,7 @@ import type { Transaction, TransactionCategory } from '../types/Transaction'
 import { getErrorMessage } from '../utils/errors'
 
 interface UseCategorizationParams {
-  uid: string | undefined
+  root: string
   toast: (message: string, type?: ToastType) => void
   transactions: Transaction[]
   setTransactions: Dispatch<SetStateAction<Transaction[]>>
@@ -24,7 +24,7 @@ interface UseCategorizationParams {
  * e é salva no Firestore para os próximos meses.
  */
 export function useCategorization({
-  uid,
+  root,
   toast,
   transactions,
   setTransactions,
@@ -41,7 +41,7 @@ export function useCategorization({
    * todos os lançamentos do mesmo estabelecimento na fatura aberta.
    */
   const applyCategoryToMerchant = async (title: string, category: TransactionCategory) => {
-    if (!uid) return
+    if (!root) return
 
     const key = merchantKey(title)
     const affected = transactions.filter((item) => merchantKey(item.originalTitle) === key)
@@ -58,7 +58,7 @@ export function useCategorization({
 
       if (selectedInvoiceId && affected.length) {
         await updateTransactionsCategory(
-          uid,
+          root,
           selectedInvoiceId,
           affected.map((item) => item.id),
           category,
@@ -83,7 +83,7 @@ export function useCategorization({
   }
 
   const handleReapplyRules = async () => {
-    if (!uid || !selectedInvoiceId) return
+    if (!root || !selectedInvoiceId) return
 
     const changes = transactions
       .map((item) => ({ item, ruleCategory: ruleMap[merchantKey(item.originalTitle)] }))
@@ -105,7 +105,7 @@ export function useCategorization({
       })
 
       for (const [category, ids] of byCategory) {
-        await updateTransactionsCategory(uid, selectedInvoiceId, ids, category)
+        await updateTransactionsCategory(root, selectedInvoiceId, ids, category)
       }
 
       setTransactions((current) =>

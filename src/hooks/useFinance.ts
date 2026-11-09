@@ -22,7 +22,7 @@ import type {
 import { getErrorMessage } from '../utils/errors'
 
 interface UseFinanceParams {
-  uid: string | undefined
+  root: string
   month: string
   toast: (message: string, type?: ToastType) => void
   confirm: (options: ConfirmOptions) => Promise<boolean>
@@ -30,10 +30,10 @@ interface UseFinanceParams {
 
 /**
  * Contas fixas, pagamentos, receitas e gastos avulsos.
- * Recebe uid/toast/confirm por parâmetro para que o uid possa virar um
- * spaceId sem mexer no hook.
+ * Recebe `root` (caminho Firestore) por parâmetro para suportar tanto o
+ * espaço pessoal (`users/{uid}`) quanto espaços compartilhados (`spaces/{id}`).
  */
-export function useFinance({ uid, month, toast, confirm }: UseFinanceParams) {
+export function useFinance({ root, month, toast, confirm }: UseFinanceParams) {
   const [bills, setBills] = useState<Bill[]>([])
   const [payments, setPayments] = useState<BillPayment[]>([])
   const [incomes, setIncomes] = useState<Income[]>([])
@@ -44,7 +44,7 @@ export function useFinance({ uid, month, toast, confirm }: UseFinanceParams) {
 
   /** Executa uma operação financeira com indicador de salvamento, aviso e tratamento de erro. */
   const runFinance = async (operation: () => Promise<void>, message: string): Promise<boolean> => {
-    if (!uid) return false
+    if (!root) return false
 
     setSavingFinance(true)
 
@@ -62,7 +62,7 @@ export function useFinance({ uid, month, toast, confirm }: UseFinanceParams) {
 
   const handleSaveBill = (bill: NewBill) =>
     runFinance(async () => {
-      const saved = await saveBill(uid!, bill)
+      const saved = await saveBill(root, bill)
       setBills((current) => [...current.filter((item) => item.id !== saved.id), saved])
     }, `Conta "${bill.name.trim()}" salva.`)
 
@@ -76,7 +76,7 @@ export function useFinance({ uid, month, toast, confirm }: UseFinanceParams) {
     if (!ok) return
 
     await runFinance(async () => {
-      await deleteBill(uid!, bill.id)
+      await deleteBill(root, bill.id)
       setBills((current) => current.filter((item) => item.id !== bill.id))
       setPayments((current) => current.filter((item) => item.billId !== bill.id))
     }, `Conta "${bill.name}" excluída.`)
@@ -84,19 +84,19 @@ export function useFinance({ uid, month, toast, confirm }: UseFinanceParams) {
 
   const handlePayBill = (bill: Bill, amount: number) =>
     void runFinance(async () => {
-      const payment = await markBillPaid(uid!, bill.id, month, amount)
+      const payment = await markBillPaid(root, bill.id, month, amount)
       setPayments((current) => [...current.filter((item) => item.id !== payment.id), payment])
     }, `"${bill.name}" marcada como paga.`)
 
   const handleUnpayBill = (bill: Bill) =>
     void runFinance(async () => {
-      await unmarkBillPaid(uid!, bill.id, month)
+      await unmarkBillPaid(root, bill.id, month)
       setPayments((current) => current.filter((item) => !(item.billId === bill.id && item.month === month)))
     }, `Pagamento de "${bill.name}" desfeito.`)
 
   const handleSaveIncome = (income: NewIncome) =>
     runFinance(async () => {
-      const saved = await saveIncome(uid!, income)
+      const saved = await saveIncome(root, income)
       setIncomes((current) => [...current.filter((item) => item.id !== saved.id), saved])
     }, `Receita "${income.name.trim()}" salva.`)
 
@@ -110,14 +110,14 @@ export function useFinance({ uid, month, toast, confirm }: UseFinanceParams) {
     if (!ok) return
 
     await runFinance(async () => {
-      await deleteIncome(uid!, income.id)
+      await deleteIncome(root, income.id)
       setIncomes((current) => current.filter((item) => item.id !== income.id))
     }, `Receita "${income.name}" excluída.`)
   }
 
   const handleSaveExpense = (expense: NewExpense) =>
     runFinance(async () => {
-      const saved = await saveExpense(uid!, expense)
+      const saved = await saveExpense(root, expense)
       setExpenses((current) => [...current.filter((item) => item.id !== saved.id), saved])
     }, `Gasto "${expense.description.trim()}" salvo.`)
 
@@ -131,7 +131,7 @@ export function useFinance({ uid, month, toast, confirm }: UseFinanceParams) {
     if (!ok) return
 
     await runFinance(async () => {
-      await deleteExpense(uid!, expense.id)
+      await deleteExpense(root, expense.id)
       setExpenses((current) => current.filter((item) => item.id !== expense.id))
     }, `Gasto "${expense.description}" excluído.`)
   }

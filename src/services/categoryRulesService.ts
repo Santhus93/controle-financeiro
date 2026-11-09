@@ -9,7 +9,6 @@ import {
   writeBatch,
 } from 'firebase/firestore'
 import { db } from '../firebase/firebase'
-import { userRoot } from '../firebase/paths'
 import type { TransactionCategory } from '../types/Transaction'
 import { merchantKey, type CategoryRuleMap } from './categoryEngine'
 
@@ -21,8 +20,8 @@ export interface CategoryRule {
   updatedAt: Date | null
 }
 
-function rulesCollection(uid: string) {
-  return collection(db, userRoot(uid), 'categoryRules')
+function rulesCollection(root: string) {
+  return collection(db, root, 'categoryRules')
 }
 
 export function ruleIdFromPattern(pattern: string): string {
@@ -33,8 +32,8 @@ export function sortRules(rules: CategoryRule[]): CategoryRule[] {
   return [...rules].sort((a, b) => a.sampleTitle.localeCompare(b.sampleTitle, 'pt-BR'))
 }
 
-export async function listCategoryRules(uid: string): Promise<CategoryRule[]> {
-  const snapshot = await getDocs(rulesCollection(uid))
+export async function listCategoryRules(root: string): Promise<CategoryRule[]> {
+  const snapshot = await getDocs(rulesCollection(root))
 
   return sortRules(
     snapshot.docs.map((ruleSnapshot) => {
@@ -55,7 +54,7 @@ export function rulesToMap(rules: CategoryRule[]): CategoryRuleMap {
 }
 
 export async function saveCategoryRule(
-  uid: string,
+  root: string,
   title: string,
   category: TransactionCategory,
 ): Promise<CategoryRule> {
@@ -67,7 +66,7 @@ export async function saveCategoryRule(
 
   const id = ruleIdFromPattern(pattern)
 
-  await setDoc(doc(rulesCollection(uid), id), {
+  await setDoc(doc(rulesCollection(root), id), {
     pattern,
     category,
     sampleTitle: title,
@@ -77,13 +76,13 @@ export async function saveCategoryRule(
   return { id, pattern, category, sampleTitle: title, updatedAt: new Date() }
 }
 
-export async function deleteCategoryRule(uid: string, ruleId: string): Promise<void> {
-  await deleteDoc(doc(rulesCollection(uid), ruleId))
+export async function deleteCategoryRule(root: string, ruleId: string): Promise<void> {
+  await deleteDoc(doc(rulesCollection(root), ruleId))
 }
 
 /** Migra para o Firestore as regras antigas do localStorage (V1). */
 export async function importLegacyRules(
-  uid: string,
+  root: string,
   legacyRules: CategoryRuleMap,
   existingRules: CategoryRuleMap,
 ): Promise<number> {
@@ -95,7 +94,7 @@ export async function importLegacyRules(
 
   const batch = writeBatch(db)
   entries.forEach(([pattern, category]) => {
-    batch.set(doc(rulesCollection(uid), ruleIdFromPattern(pattern)), {
+    batch.set(doc(rulesCollection(root), ruleIdFromPattern(pattern)), {
       pattern,
       category,
       sampleTitle: pattern,

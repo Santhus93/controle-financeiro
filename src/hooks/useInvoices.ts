@@ -15,7 +15,7 @@ import { formatMonthLabel } from '../utils/invoiceReference'
 import { getErrorMessage } from '../utils/errors'
 
 interface UseInvoicesParams {
-  uid: string | undefined
+  root: string
   toast: (message: string, type?: ToastType) => void
   confirm: (options: ConfirmOptions) => Promise<boolean>
   resetFilters: () => void
@@ -30,7 +30,7 @@ function formatReferenceMonth(referenceMonth: string): string {
  * `resetFilters` é chamado sempre que uma fatura é carregada, para a tabela
  * voltar a mostrar todos os lançamentos.
  */
-export function useInvoices({ uid, toast, confirm, resetFilters }: UseInvoicesParams) {
+export function useInvoices({ root, toast, confirm, resetFilters }: UseInvoicesParams) {
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([])
   const [selectedInvoiceId, setSelectedInvoiceId] = useState('')
   const [fileName, setFileName] = useState('')
@@ -54,7 +54,7 @@ export function useInvoices({ uid, toast, confirm, resetFilters }: UseInvoicesPa
   }
 
   const handleFile = async (file: File, ruleMap: CategoryRuleMap) => {
-    if (!uid) return
+    if (!root) return
 
     setLoading(true)
     setError('')
@@ -69,7 +69,7 @@ export function useInvoices({ uid, toast, confirm, resetFilters }: UseInvoicesPa
       }))
 
       // Verifica se a mesma fatura já existe, inclusive em outro formato (CSV x OFX).
-      const equivalent = await findEquivalentInvoice(uid, file.name, categorized)
+      const equivalent = await findEquivalentInvoice(root, file.name, categorized)
       let replacedLabel = ''
 
       if (equivalent && !equivalent.identical) {
@@ -84,18 +84,18 @@ export function useInvoices({ uid, toast, confirm, resetFilters }: UseInvoicesPa
         })
 
         if (!replace) {
-          const existing = await loadInvoice(uid, equivalent.invoice.id)
+          const existing = await loadInvoice(root, equivalent.invoice.id)
           applyLoadedInvoice(existing.id, existing.fileName, existing.transactions)
           toast(`Importação cancelada: a fatura de ${label} foi mantida.`, 'info')
           return
         }
 
-        await deleteInvoice(uid, equivalent.invoice.id)
+        await deleteInvoice(root, equivalent.invoice.id)
         replacedLabel = ` Substituiu ${equivalent.invoice.fileName}.`
       }
 
-      const result = await saveInvoice(uid, file.name, categorized, statement.card)
-      const refreshedInvoices = await listInvoices(uid)
+      const result = await saveInvoice(root, file.name, categorized, statement.card)
+      const refreshedInvoices = await listInvoices(root)
 
       setInvoices(refreshedInvoices)
       applyLoadedInvoice(result.invoice.id, result.invoice.fileName, result.invoice.transactions)
@@ -114,12 +114,12 @@ export function useInvoices({ uid, toast, confirm, resetFilters }: UseInvoicesPa
   }
 
   const handleInvoiceSelection = async (invoiceId: string) => {
-    if (!uid || !invoiceId || invoiceId === selectedInvoiceId) return
+    if (!root || !invoiceId || invoiceId === selectedInvoiceId) return
 
     setInvoiceLoading(true)
 
     try {
-      const invoice = await loadInvoice(uid, invoiceId)
+      const invoice = await loadInvoice(root, invoiceId)
       applyLoadedInvoice(invoice.id, invoice.fileName, invoice.transactions)
     } catch (cause) {
       notifyError(cause)
@@ -129,7 +129,7 @@ export function useInvoices({ uid, toast, confirm, resetFilters }: UseInvoicesPa
   }
 
   const handleDeleteInvoice = async () => {
-    if (!uid || !selectedInvoiceId) return
+    if (!root || !selectedInvoiceId) return
 
     const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId)
     const label = selectedInvoice ? formatReferenceMonth(selectedInvoice.referenceMonth) : 'esta fatura'
@@ -144,12 +144,12 @@ export function useInvoices({ uid, toast, confirm, resetFilters }: UseInvoicesPa
     setDeleting(true)
 
     try {
-      await deleteInvoice(uid, selectedInvoiceId)
-      const remainingInvoices = await listInvoices(uid)
+      await deleteInvoice(root, selectedInvoiceId)
+      const remainingInvoices = await listInvoices(root)
       setInvoices(remainingInvoices)
 
       if (remainingInvoices.length > 0) {
-        const nextInvoice = await loadInvoice(uid, remainingInvoices[0].id)
+        const nextInvoice = await loadInvoice(root, remainingInvoices[0].id)
         applyLoadedInvoice(nextInvoice.id, nextInvoice.fileName, nextInvoice.transactions)
       } else {
         setSelectedInvoiceId('')

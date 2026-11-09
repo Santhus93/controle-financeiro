@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { LoaderCircle } from 'lucide-react'
 import { BillsTab } from './components/dashboard/BillsTab'
 import { DashboardHeader } from './components/dashboard/DashboardHeader'
@@ -26,10 +26,48 @@ import {
 } from './services/categoryRulesService'
 import { listBillPayments, listBills, listExpenses, listIncomes } from './services/financeService'
 import { listInvoices, loadInvoice } from './services/firestoreService'
+import { listMySpaces } from './services/spacesService'
+import type { ActiveScope, Space } from './types/Space'
+import { scopeRoot, userRoot } from './firebase/paths'
 import { addMonths, formatDueDate } from './utils/invoiceReference'
 import { computeForecast, currentMonth } from './utils/monthPlan'
 import { getErrorMessage } from './utils/errors'
 import packageJson from '../package.json'
+
+/**
+ * Lê o escopo ativo salvo no localStorage por uid.
+ * Devolve `{ kind: 'personal' }` se não houver nada salvo ou o espaço não
+ * existir mais na lista de espaços disponíveis.
+ */
+function readSavedScope(uid: string, available: Space[]): ActiveScope {
+  try {
+    const raw = localStorage.getItem(`activeScope:${uid}`)
+    if (!raw) return { kind: 'personal' }
+    const parsed = JSON.parse(raw) as { kind: string; spaceId?: string }
+    if (parsed.kind === 'space' && parsed.spaceId) {
+      const space = available.find((s) => s.id === parsed.spaceId)
+      if (space) return { kind: 'space', space }
+    }
+  } catch {
+    // ignore
+  }
+  return { kind: 'personal' }
+}
+
+function writeSavedScope(uid: string, scope: ActiveScope): void {
+  try {
+    if (scope.kind === 'personal') {
+      localStorage.removeItem(`activeScope:${uid}`)
+    } else {
+      localStorage.setItem(
+        `activeScope:${uid}`,
+        JSON.stringify({ kind: 'space', spaceId: scope.space.id }),
+      )
+    }
+  } catch {
+    // ignore
+  }
+}
 
 /**
  * Painel principal (área logada).
@@ -42,6 +80,39 @@ export default function Dashboard() {
   const [cloudLoading, setCloudLoading] = useState(true)
   const [view, setView] = useState<View>('month')
   const [month, setMonth] = useState(currentMonth())
+
+  // ----- Espaços -----
+  const [spaces, setSpaces] = useState<Space[]>([])
+  const [activeScope, setActiveScopeState] = useState<ActiveScope>({ kind: 'personal' })
+
+  /** Raiz Firestore do escopo ativo. */
+  const root = user ? scopeRoot(user.uid, activeScope) : ''
+
+  const setActiveScope = useCallback(
+    (scope: ActiveScope) => {
+      if (!user) return
+      setActiveScopeState(scope)
+      writeSavedScope(user.uid, scope)
+    },
+    [user],
+  )
+
+  const handleSpaceRenamed = useCallback(
+    (updated: Space) => {
+      setSpaces((current) =>
+        current.map((s) => (s.id === updated.id ? updated : s)),
+      )
+      setActiveScopeState((current) => {
+        if (current.kind === 'space' && current.space.id === updated.id) {
+          const next: ActiveScope = { kind: 'space', space: updated }
+          if (user) writeSavedScope(user.uid, next)
+          return next
+        }
+        return current
+      })
+    },
+    [user],
+  )
 
   const notifyError = (cause: unknown) => toast(getErrorMessage(cause), 'error')
 
@@ -63,10 +134,10 @@ export default function Dashboard() {
     setPayments,
     setIncomes,
     setExpenses,
-  } = useFinance({ uid: user?.uid, month, toast, confirm })
+  } = useFinance({ root, month, toast, confirm })
 
   const { rules, savingRule, setSavingRule, ruleMap, setRules, saveRule, deleteRule } = useRules({
-    uid: user?.uid,
+    root,
     toast,
     confirm,
   })
@@ -79,7 +150,9 @@ export default function Dashboard() {
     invoices,
     setInvoices,
     selectedInvoiceId,
+    setSelectedInvoiceId,
     fileName,
+    setFileName,
     transactions,
     setTransactions,
     loading,
@@ -91,14 +164,15 @@ export default function Dashboard() {
     handleInvoiceSelection,
     handleDeleteInvoice,
   } = useInvoices({
-    uid: user?.uid,
+    root,
     toast,
     confirm,
     resetFilters: () => resetFiltersRef.current(),
   })
 
-  const { allInvoices } = useInvoiceHistory({
+  const { allInvoices, setAllInvoices } = useInvoiceHistory({
     user,
+    root,
     invoices,
     transactions,
     view,
@@ -124,7 +198,7 @@ export default function Dashboard() {
 
   const { applyCategoryToMerchant, handleCategoryChange, handleRuleChange, handleReapplyRules } =
     useCategorization({
-      uid: user?.uid,
+      root,
       toast,
       transactions,
       setTransactions,
@@ -135,7 +209,7 @@ export default function Dashboard() {
       saveRule,
     })
 
-  const { budget, savingBudget, saveBudget: handleSaveBudget, setBudget } = useBudget()
+  const { budget, savingBudget, saveBudget: handleSaveBudget, setBudget } = useBudget({ root })
 
   const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId)
   const invoiceMonth = selectedInvoice?.referenceMonth ?? ''
@@ -151,6 +225,7 @@ export default function Dashboard() {
     [allInvoices, financeData, month],
   )
 
+  // ----- Carga inicial: espaços + dados do escopo -----
   useEffect(() => {
     if (!user) return
 
@@ -159,25 +234,49 @@ export default function Dashboard() {
     const loadInitialData = async () => {
       setCloudLoading(true)
 
-      try {
-        let foundRules = await listCategoryRules(user.uid)
+      // Limpa dados do escopo anterior imediatamente
+      setRules([])
+      setBudget({ monthlyLimit: 0, categories: {} })
+      setBills([])
+      setPayments([])
+      setIncomes([])
+      setExpenses([])
+      setInvoices([])
+      setSelectedInvoiceId('')
+      setFileName('')
+      setTransactions([])
+      setAllInvoices(null)
 
-        // Migra regras antigas da V1 (localStorage) para o Firestore, uma única vez.
-        const legacyRules = readLegacyLocalRules()
-        if (Object.keys(legacyRules).length > 0) {
-          const imported = await importLegacyRules(user.uid, legacyRules, rulesToMap(foundRules))
-          clearLegacyLocalRules()
-          if (imported > 0) foundRules = await listCategoryRules(user.uid)
+      try {
+        // 1. Carrega os espaços (apenas na primeira vez; root não muda ainda)
+        const mySpaces = await listMySpaces(user.uid)
+        if (cancelled) return
+        setSpaces(mySpaces)
+
+        // Restaura o escopo salvo (pode depender da lista de espaços)
+        const savedScope = readSavedScope(user.uid, mySpaces)
+        setActiveScopeState(savedScope)
+        const currentRoot = scopeRoot(user.uid, savedScope)
+
+        // 2. Regras de categoria (migra legado apenas no Pessoal)
+        let foundRules = await listCategoryRules(currentRoot)
+        if (savedScope.kind === 'personal') {
+          const legacyRules = readLegacyLocalRules()
+          if (Object.keys(legacyRules).length > 0) {
+            const imported = await importLegacyRules(currentRoot, legacyRules, rulesToMap(foundRules))
+            clearLegacyLocalRules()
+            if (imported > 0) foundRules = await listCategoryRules(currentRoot)
+          }
         }
 
         const [foundBudget, foundBills, foundPayments, foundIncomes, foundExpenses, foundInvoices] =
           await Promise.all([
-            loadBudget(user.uid),
-            listBills(user.uid),
-            listBillPayments(user.uid),
-            listIncomes(user.uid),
-            listExpenses(user.uid),
-            listInvoices(user.uid),
+            loadBudget(currentRoot),
+            listBills(currentRoot),
+            listBillPayments(currentRoot),
+            listIncomes(currentRoot),
+            listExpenses(currentRoot),
+            listInvoices(currentRoot),
           ])
         if (cancelled) return
 
@@ -190,7 +289,7 @@ export default function Dashboard() {
         setInvoices(foundInvoices)
 
         if (foundInvoices.length > 0) {
-          const latestInvoice = await loadInvoice(user.uid, foundInvoices[0].id)
+          const latestInvoice = await loadInvoice(currentRoot, foundInvoices[0].id)
           if (cancelled) return
           applyLoadedInvoice(latestInvoice.id, latestInvoice.fileName, latestInvoice.transactions)
         }
@@ -209,6 +308,87 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
+  // ----- Recarga ao trocar de escopo (após a carga inicial) -----
+  const prevRootRef = useRef<string>('')
+  useEffect(() => {
+    // Ignora a primeira renderização (a carga inicial já faz isso)
+    if (!user || cloudLoading) {
+      prevRootRef.current = root
+      return
+    }
+    if (root === prevRootRef.current) return
+    prevRootRef.current = root
+
+    let cancelled = false
+
+    const reloadScope = async () => {
+      setCloudLoading(true)
+
+      // Limpa imediatamente para nunca exibir dados de outro espaço
+      setRules([])
+      setBudget({ monthlyLimit: 0, categories: {} })
+      setBills([])
+      setPayments([])
+      setIncomes([])
+      setExpenses([])
+      setInvoices([])
+      setSelectedInvoiceId('')
+      setFileName('')
+      setTransactions([])
+      setAllInvoices(null)
+
+      try {
+        let foundRules = await listCategoryRules(root)
+
+        // Migra legado de localStorage apenas no escopo Pessoal
+        if (activeScope.kind === 'personal') {
+          const legacyRules = readLegacyLocalRules()
+          if (Object.keys(legacyRules).length > 0) {
+            const imported = await importLegacyRules(root, legacyRules, rulesToMap(foundRules))
+            clearLegacyLocalRules()
+            if (imported > 0) foundRules = await listCategoryRules(root)
+          }
+        }
+
+        const [foundBudget, foundBills, foundPayments, foundIncomes, foundExpenses, foundInvoices] =
+          await Promise.all([
+            loadBudget(root),
+            listBills(root),
+            listBillPayments(root),
+            listIncomes(root),
+            listExpenses(root),
+            listInvoices(root),
+          ])
+        if (cancelled) return
+
+        setRules(foundRules)
+        setBudget(foundBudget)
+        setBills(foundBills)
+        setPayments(foundPayments)
+        setIncomes(foundIncomes)
+        setExpenses(foundExpenses)
+        setInvoices(foundInvoices)
+
+        if (foundInvoices.length > 0) {
+          const latestInvoice = await loadInvoice(root, foundInvoices[0].id)
+          if (cancelled) return
+          applyLoadedInvoice(latestInvoice.id, latestInvoice.fileName, latestInvoice.transactions)
+        }
+      } catch (cause) {
+        if (!cancelled) notifyError(cause)
+      } finally {
+        if (!cancelled) setCloudLoading(false)
+      }
+    }
+
+    void reloadScope()
+
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [root])
+
   const openInvoice = (invoiceId: string) => {
     setView('invoice')
     void handleInvoiceSelection(invoiceId)
@@ -221,6 +401,7 @@ export default function Dashboard() {
   return (
     <div className="app-shell">
       <DashboardHeader
+        uid={user.uid}
         email={user.email}
         theme={theme}
         onToggleTheme={toggleTheme}
@@ -234,6 +415,14 @@ export default function Dashboard() {
         invoiceCount={invoices.length}
         billCount={bills.length}
         incomeCount={incomes.length}
+        spaces={spaces}
+        activeScope={activeScope}
+        onScopeChange={(scope) => {
+          setActiveScope(scope)
+        }}
+        onSpacesChange={setSpaces}
+        onSpaceRenamed={handleSpaceRenamed}
+        toast={toast}
       />
 
       <main className="container-app">

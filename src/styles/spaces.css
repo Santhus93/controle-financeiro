@@ -1,0 +1,205 @@
+/* V5.1 — SpaceSwitcher: seletor de escopo (Pessoal / Espaço) */
+
+.space-switcher {
+  position: relative;
+  display: inline-flex;
+}
+
+.space-switcher-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgba(255,255,255,.24);
+  background: rgba(255,255,255,.08);
+  color: #fff;
+  padding: 7px 10px;
+  border-radius: 9px;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.space-switcher-trigger:hover {
+  background: rgba(255,255,255,.16);
+}
+
+.space-switcher-label {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.space-switcher-chevron {
+  transition: transform .2s;
+  flex-shrink: 0;
+}
+
+.space-switcher-chevron.open {
+  transform: rotate(180deg);
+}
+
+/* Backdrop invisível para fechar o menu ao clicar fora */
+.space-switcher-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+}
+
+/* Menu dropdown */
+.space-switcher-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 91;
+  min-width: 190px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 10px 32px rgba(43,25,66,.18);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.space-switcher-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.space-switcher-item:hover {
+  background: #f5f0fd;
+  color: var(--purple);
+}
+
+.space-switcher-item.active {
+  background: var(--purple);
+  color: #fff;
+}
+
+.space-switcher-item.space-switcher-new {
+  color: var(--purple);
+}
+
+.space-switcher-item.space-switcher-new:hover {
+  background: #ede9fe;
+}
+
+.space-switcher-divider {
+  height: 1px;
+  background: var(--line);
+  margin: 4px 0;
+}
+
+/* Formulário de novo espaço dentro do menu */
+.space-switcher-create {
+  padding: 6px 4px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.space-switcher-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--panel, #fff);
+  color: var(--ink);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.space-switcher-input:focus {
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px rgba(109,40,217,.12);
+}
+
+.space-switcher-create-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.space-switcher-create-btn {
+  flex: 1;
+  padding: 7px 10px;
+  background: var(--purple);
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.space-switcher-create-btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.space-switcher-cancel-btn {
+  flex: 1;
+  padding: 7px 10px;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.space-switcher-cancel-btn:hover:not(:disabled) {
+  background: #f5f5f5;
+}
+
+/* reference-box: nome do espaço ativo */
+.reference-box-scope {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,.15);
+}
+
+.reference-box-scope-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255,255,255,.8);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+
+.reference-box-rename {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 6px;
+  color: rgba(255,255,255,.8);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s;
+}
+
+.reference-box-rename:hover {
+  background: rgba(255,255,255,.22);
+}

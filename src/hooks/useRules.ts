@@ -10,7 +10,7 @@ import type { TransactionCategory } from '../types/Transaction'
 import { getErrorMessage } from '../utils/errors'
 
 interface UseRulesParams {
-  uid: string | undefined
+  root: string
   toast: (message: string, type?: ToastType) => void
   confirm: (options: ConfirmOptions) => Promise<boolean>
 }
@@ -20,7 +20,7 @@ interface UseRulesParams {
  * Não depende de transações: só guarda a lista, o mapa por estabelecimento e
  * as operações de gravar/excluir regra.
  */
-export function useRules({ uid, toast, confirm }: UseRulesParams) {
+export function useRules({ root, toast, confirm }: UseRulesParams) {
   const [rules, setRules] = useState<CategoryRule[]>([])
   const [savingRule, setSavingRule] = useState(false)
 
@@ -33,13 +33,13 @@ export function useRules({ uid, toast, confirm }: UseRulesParams) {
    * Quem chama decide quando atualizar a lista (setRules) e quando mostrar o aviso.
    */
   const saveRule = async (title: string, category: TransactionCategory) => {
-    if (!uid) throw new Error('Sessão expirada.')
+    if (!root) throw new Error('Sessão expirada.')
 
-    return saveCategoryRule(uid, title, category)
+    return saveCategoryRule(root, title, category)
   }
 
   const deleteRule = async (rule: CategoryRule) => {
-    if (!uid) return
+    if (!root) return
 
     const ok = await confirm({
       title: 'Excluir regra',
@@ -52,7 +52,7 @@ export function useRules({ uid, toast, confirm }: UseRulesParams) {
     setSavingRule(true)
 
     try {
-      await deleteCategoryRule(uid, rule.id)
+      await deleteCategoryRule(root, rule.id)
       setRules((current) => current.filter((item) => item.id !== rule.id))
       toast('Regra excluída.')
     } catch (cause) {

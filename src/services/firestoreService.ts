@@ -11,7 +11,6 @@ import {
   writeBatch,
 } from 'firebase/firestore'
 import { db } from '../firebase/firebase'
-import { userRoot } from '../firebase/paths'
 import type { InvoiceSummary, SaveInvoiceResult, SavedInvoice } from '../types/Invoice'
 import type { Transaction } from '../types/Transaction'
 import { getInvoiceMonth } from '../utils/invoiceReference'
@@ -20,16 +19,16 @@ const FIRESTORE_BATCH_LIMIT = 450
 
 type BatchOperation = (batch: ReturnType<typeof writeBatch>) => void
 
-function invoicesCollection(uid: string) {
-  return collection(db, userRoot(uid), 'invoices')
+function invoicesCollection(root: string) {
+  return collection(db, root, 'invoices')
 }
 
-function invoiceDocument(uid: string, invoiceId: string) {
-  return doc(db, userRoot(uid), 'invoices', invoiceId)
+function invoiceDocument(root: string, invoiceId: string) {
+  return doc(db, root, 'invoices', invoiceId)
 }
 
-function transactionsCollection(uid: string, invoiceId: string) {
-  return collection(db, userRoot(uid), 'invoices', invoiceId, 'transactions')
+function transactionsCollection(root: string, invoiceId: string) {
+  return collection(db, root, 'invoices', invoiceId, 'transactions')
 }
 
 function normalizeForFingerprint(value: string): string {
@@ -202,7 +201,7 @@ export function countAmountMatches(existing: Transaction[], incoming: Transactio
  * dos lançamentos têm o mesmo valor.
  */
 export async function findEquivalentInvoice(
-  uid: string,
+  root: string,
   fileName: string,
   transactions: Transaction[],
 ): Promise<EquivalentInvoice | null> {
@@ -211,7 +210,7 @@ export async function findEquivalentInvoice(
   const referenceMonth = getInvoiceMonth(fileName, getReferenceMonth(transactions))
   const { totalExpenses } = calculateTotals(transactions)
   const invoiceId = await createInvoiceId(transactions)
-  const invoices = await listInvoices(uid)
+  const invoices = await listInvoices(root)
 
   const candidates = invoices.filter(
     (invoice) =>
@@ -223,7 +222,7 @@ export async function findEquivalentInvoice(
   let best: EquivalentInvoice | null = null
 
   for (const candidate of candidates) {
-    const snapshot = await getDocs(transactionsCollection(uid, candidate.id))
+    const snapshot = await getDocs(transactionsCollection(root, candidate.id))
     const existing = snapshot.docs.map((item) => transactionFromFirestore(item.data()))
     const matched = countAmountMatches(existing, transactions)
     const total = Math.max(existing.length, transactions.length)
@@ -238,7 +237,7 @@ export async function findEquivalentInvoice(
 }
 
 export async function saveInvoice(
-  uid: string,
+  root: string,
   fileName: string,
   transactions: Transaction[],
   card = 'Nubank',
@@ -248,12 +247,12 @@ export async function saveInvoice(
   }
 
   const invoiceId = await createInvoiceId(transactions)
-  const invoiceRef = invoiceDocument(uid, invoiceId)
+  const invoiceRef = invoiceDocument(root, invoiceId)
   const existingInvoice = await getDoc(invoiceRef)
 
   if (existingInvoice.exists()) {
     return {
-      invoice: await loadInvoice(uid, invoiceId),
+      invoice: await loadInvoice(root, invoiceId),
       alreadyExisted: true,
     }
   }
@@ -275,7 +274,7 @@ export async function saveInvoice(
   })
 
   transactions.forEach((transaction) => {
-    const transactionRef = doc(transactionsCollection(uid, invoiceId), transaction.id)
+    const transactionRef = doc(transactionsCollection(root, invoiceId), transaction.id)
     operations.push((batch) => batch.set(transactionRef, transactionToFirestore(transaction)))
   })
 
@@ -296,8 +295,8 @@ export async function saveInvoice(
   }
 }
 
-export async function listInvoices(uid: string): Promise<InvoiceSummary[]> {
-  const invoicesQuery = query(invoicesCollection(uid), orderBy('importedAt', 'desc'))
+export async function listInvoices(root: string): Promise<InvoiceSummary[]> {
+  const invoicesQuery = query(invoicesCollection(root), orderBy('importedAt', 'desc'))
   const snapshot = await getDocs(invoicesQuery)
 
   return snapshot.docs
@@ -305,14 +304,14 @@ export async function listInvoices(uid: string): Promise<InvoiceSummary[]> {
     .sort((a, b) => b.referenceMonth.localeCompare(a.referenceMonth))
 }
 
-export async function loadInvoice(uid: string, invoiceId: string): Promise<SavedInvoice> {
-  const invoiceSnapshot = await getDoc(invoiceDocument(uid, invoiceId))
+export async function loadInvoice(root: string, invoiceId: string): Promise<SavedInvoice> {
+  const invoiceSnapshot = await getDoc(invoiceDocument(root, invoiceId))
 
   if (!invoiceSnapshot.exists()) {
     throw new Error('A fatura selecionada não foi encontrada.')
   }
 
-  const transactionSnapshots = await getDocs(transactionsCollection(uid, invoiceId))
+  const transactionSnapshots = await getDocs(transactionsCollection(root, invoiceId))
   const transactions = transactionSnapshots.docs
     .map((transactionSnapshot) => transactionFromFirestore(transactionSnapshot.data()))
     .sort((a, b) => b.date.localeCompare(a.date))
@@ -323,8 +322,8 @@ export async function loadInvoice(uid: string, invoiceId: string): Promise<Saved
   }
 }
 
-export async function deleteInvoice(uid: string, invoiceId: string): Promise<void> {
-  const transactionSnapshots = await getDocs(transactionsCollection(uid, invoiceId))
+export async function deleteInvoice(root: string, invoiceId: string): Promise<void> {
+  const transactionSnapshots = await getDocs(transactionsCollection(root, invoiceId))
   const deleteOperations: BatchOperation[] = transactionSnapshots.docs.map(
     (transactionSnapshot) => (batch) => {
       batch.delete(transactionSnapshot.ref)
@@ -332,20 +331,20 @@ export async function deleteInvoice(uid: string, invoiceId: string): Promise<voi
   )
 
   await commitInChunks(deleteOperations)
-  await deleteDoc(invoiceDocument(uid, invoiceId))
+  await deleteDoc(invoiceDocument(root, invoiceId))
 }
 
 export async function updateTransactionCategory(
-  uid: string,
+  root: string,
   invoiceId: string,
   transactionId: string,
   category: Transaction['category'],
 ): Promise<void> {
-  await updateTransactionsCategory(uid, invoiceId, [transactionId], category)
+  await updateTransactionsCategory(root, invoiceId, [transactionId], category)
 }
 
 export async function updateTransactionsCategory(
-  uid: string,
+  root: string,
   invoiceId: string,
   transactionIds: string[],
   category: Transaction['category'],
@@ -353,19 +352,19 @@ export async function updateTransactionsCategory(
   if (!transactionIds.length) return
 
   const operations: BatchOperation[] = transactionIds.map((transactionId) => (batch) => {
-    batch.update(doc(transactionsCollection(uid, invoiceId), transactionId), { category })
+    batch.update(doc(transactionsCollection(root, invoiceId), transactionId), { category })
   })
 
   operations.push((batch) => {
-    batch.update(invoiceDocument(uid, invoiceId), { updatedAt: serverTimestamp() })
+    batch.update(invoiceDocument(root, invoiceId), { updatedAt: serverTimestamp() })
   })
 
   await commitInChunks(operations)
 }
 
 /** Carrega todas as faturas com os lançamentos, da mais antiga para a mais recente. */
-export async function loadAllInvoices(uid: string): Promise<SavedInvoice[]> {
-  const summaries = await listInvoices(uid)
-  const invoices = await Promise.all(summaries.map((summary) => loadInvoice(uid, summary.id)))
+export async function loadAllInvoices(root: string): Promise<SavedInvoice[]> {
+  const summaries = await listInvoices(root)
+  const invoices = await Promise.all(summaries.map((summary) => loadInvoice(root, summary.id)))
   return invoices.sort((a, b) => a.referenceMonth.localeCompare(b.referenceMonth))
 }
