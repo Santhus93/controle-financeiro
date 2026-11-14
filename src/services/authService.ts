@@ -13,6 +13,7 @@ import {
   type User,
 } from 'firebase/auth'
 import { auth } from '../firebase/app'
+import { validateDisplayName } from '../utils/displayName'
 
 // Idioma dos e-mails enviados pelo Firebase (confirmação e redefinição de senha).
 auth.languageCode = 'pt-BR'
@@ -88,6 +89,22 @@ export async function signInWithGoogle() {
 
     throw cause
   }
+}
+
+/**
+ * Atualiza o nome de exibição no Firebase Auth.
+ * A sessão é atualizada depois pelo `refreshUser()` do AuthContext.
+ */
+export async function updateDisplayName(name: string): Promise<void> {
+  const currentUser = auth.currentUser
+
+  if (!currentUser) throw new Error('Sessão expirada. Entre novamente.')
+
+  const validation = validateDisplayName(name)
+
+  if (!validation.ok) throw new Error(validation.error)
+
+  await updateProfile(currentUser, { displayName: validation.name })
 }
 
 /** Reenvia o e-mail de confirmação para o usuário autenticado. */

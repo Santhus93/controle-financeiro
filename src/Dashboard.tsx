@@ -362,6 +362,7 @@ export default function Dashboard() {
       <DashboardHeader
         uid={user.uid}
         email={user.email}
+        displayName={user.displayName}
         theme={theme}
         onToggleTheme={toggleTheme}
         onLogout={() => void logout()}

@@ -1,14 +1,17 @@
-import { LogOut, Moon, Sun } from 'lucide-react'
+import { useState } from 'react'
+import { LogOut, Moon, Sun, UserRound } from 'lucide-react'
 import type { Theme } from '../../contexts/UiContext'
 import type { InvoiceSummary } from '../../types/Invoice'
 import type { ActiveScope, Space } from '../../types/Space'
 import { formatMonthLabel } from '../../utils/invoiceReference'
+import { ProfileDialog } from './ProfileDialog'
 import { SpaceSwitcher } from './SpaceSwitcher'
 import type { View } from './ViewTabs'
 
 interface DashboardHeaderProps {
   uid: string
   email: string | null
+  displayName: string | null
   theme: Theme
   onToggleTheme: () => void
   onLogout: () => void
@@ -33,6 +36,7 @@ interface DashboardHeaderProps {
 export function DashboardHeader({
   uid,
   email,
+  displayName,
   theme,
   onToggleTheme,
   onLogout,
@@ -53,6 +57,8 @@ export function DashboardHeader({
   canManageMembers,
   toast,
 }: DashboardHeaderProps) {
+  const [profileOpen, setProfileOpen] = useState(false)
+
   const spaceName =
     activeScope.kind === 'space' ? activeScope.space.name : 'Pessoal'
 
@@ -65,7 +71,10 @@ export function DashboardHeader({
           <div className="hero-topline">
             <span className="brand-pill">CONTROLE FINANCEIRO</span>
             <div className="user-session">
-              <span>{email}</span>
+              <div className="user-identity">
+                {displayName && <strong title={displayName}>{displayName}</strong>}
+                <span title={email ?? undefined}>{email}</span>
+              </div>
               <SpaceSwitcher
                 uid={uid}
                 spaces={spaces}
@@ -84,6 +93,14 @@ export function DashboardHeader({
                 title={theme === 'dark' ? 'Tema claro' : 'Tema escuro'}
               >
                 {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+              </button>
+              <button
+                type="button"
+                onClick={() => setProfileOpen(true)}
+                aria-label="Meu perfil"
+                title="Meu perfil"
+              >
+                <UserRound size={15} /> <span className="profile-action-label">Meu perfil</span>
               </button>
               <button type="button" onClick={onLogout}>
                 <LogOut size={15} /> Sair
@@ -119,6 +136,8 @@ export function DashboardHeader({
           </div>
         </div>
       </div>
+
+      {profileOpen && <ProfileDialog onClose={() => setProfileOpen(false)} />}
     </header>
   )
 }
