@@ -1,6 +1,7 @@
+import type { Authorship } from './Author'
 import type { Transaction } from './Transaction'
 
-export interface InvoiceSummary {
+export interface InvoiceSummary extends Authorship {
   id: string
   referenceMonth: string
   fileName: string

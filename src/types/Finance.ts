@@ -1,3 +1,4 @@
+import type { Authorship } from './Author'
 import type { TransactionCategory } from './Transaction'
 
 /**
@@ -22,7 +23,7 @@ export const BILL_CATEGORIES = [
 
 export type BillCategory = (typeof BILL_CATEGORIES)[number]
 
-export interface Bill {
+export interface Bill extends Authorship {
   id: string
   name: string
   category: BillCategory
@@ -36,7 +37,7 @@ export interface Bill {
   startMonth: string
 }
 
-export interface BillPayment {
+export interface BillPayment extends Authorship {
   /** {mês}_{billId} */
   id: string
   billId: string
@@ -44,7 +45,7 @@ export interface BillPayment {
   amount: number
 }
 
-export interface Income {
+export interface Income extends Authorship {
   id: string
   name: string
   amount: number
@@ -61,7 +62,7 @@ export const PAYMENT_METHODS = ['Pix', 'Débito', 'Dinheiro', 'Boleto'] as const
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number]
 
 /** Gasto pontual fora do cartão (Pix, débito, dinheiro, boleto avulso). */
-export interface Expense {
+export interface Expense extends Authorship {
   id: string
   description: string
   amount: number
@@ -71,6 +72,7 @@ export interface Expense {
   method: PaymentMethod
 }
 
-export type NewBill = Omit<Bill, 'id'> & { id?: string }
-export type NewIncome = Omit<Income, 'id'> & { id?: string }
-export type NewExpense = Omit<Expense, 'id'> & { id?: string }
+// Formulários não escolhem nem falsificam autoria: o serviço usa apenas o Actor.
+export type NewBill = Omit<Bill, 'id' | keyof Authorship> & { id?: string }
+export type NewIncome = Omit<Income, 'id' | keyof Authorship> & { id?: string }
+export type NewExpense = Omit<Expense, 'id' | keyof Authorship> & { id?: string }

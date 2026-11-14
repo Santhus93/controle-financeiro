@@ -77,15 +77,17 @@ src/
 │   ├── importService.ts         escolhe o leitor pela extensão; conferência com o saldo
 │   ├── ofxParser.ts, csvParser.ts, transactionClassifier.ts, categoryEngine.ts
 │   ├── firestoreService.ts, categoryRulesService.ts, budgetService.ts, financeService.ts
+│   ├── authorship.ts        serverTimestamp() para createdBy/createdAt
 │
 ├── styles/
 │   ├── base.css, layout.css, feedback.css, login.css
 │   ├── invoices.css, budget.css, month.css, history.css
 │   ├── responsive.css (media queries por breakpoint), theme-dark.css (por último)
 │
-├── types/      Transaction.ts, Invoice.ts, Finance.ts
+├── types/      Transaction.ts, Invoice.ts, Finance.ts, Author.ts
 └── utils/      currency.ts, dates.ts, invoiceReference.ts, monthPlan.ts,
-                scopePermissions.ts (+ test), errors.ts (+ test), authErrors.ts (+ test)
+                scopePermissions.ts (+ test), authorship.ts (+ test),
+                errors.ts (+ test), authErrors.ts (+ test)
 ```
 
 Gráficos (`CategoryChart`, `SpendingChart`, `HistoryView`, `CashflowHistory`) são carregados com `lazy()`.
@@ -112,6 +114,29 @@ Gráficos (`CategoryChart`, `SpendingChart`, `HistoryView`, `CashflowHistory`) s
 - Componentes reutilizáveis recebem `canEdit?: boolean` (padrão `true`) e escondem apenas os
   controles de escrita; dados, cálculos e navegação continuam visíveis.
 - A segurança real continua nas regras do Firestore; a interface não substitui as regras.
+
+## Autoria (V5.3 — em andamento)
+
+- `types/Author.ts`: `Actor` (usuário autenticado), `CreatedBy` (autor gravado) e `Authorship`
+  (`createdBy?` + `createdAt?`, ambos opcionais para documentos antigos).
+- `Bill`, `BillPayment`, `Income`, `Expense` e `InvoiceSummary` estendem `Authorship`.
+  `NewBill`/`NewIncome`/`NewExpense` omitem esses campos: o formulário não escolhe autoria.
+- `Dashboard` monta um único `Actor` com `useMemo` a partir de `user`; **no Pessoal é `undefined`**,
+  então nada de autoria é gravado. Espaços usam o usuário autenticado, nunca `memberInfo`.
+- `hooks/useFinance` repassa o Actor só para criação/edição de conta, receita, gasto e marcação de
+  pagamento; exclusões e "desfazer pagamento" não recebem Actor.
+- `hooks/useInvoices` repassa o Actor para `saveInvoice`.
+- Criação grava `createdBy` + `createdAt` (`serverTimestamp()`); edição usa `setDoc` com
+  `{ merge: true }` sem campos de autoria, preservando a original. `unmarkBillPaid`, exclusões e
+  leituras continuam iguais.
+- Marcar de novo uma conta como paga recria `billPayments/{mes}_{billId}` e a autoria passa a ser
+  de quem fez a marcação mais recente; `paidAt` continua existindo.
+- A fatura tem **um autor no documento da fatura**; as transações não recebem `createdBy`.
+  Em `alreadyExisted` a autoria existente não muda; na substituição, a nova fatura recebe o autor
+  de quem substituiu.
+- Helpers puros (`utils/authorship.ts`): normalização, leitura tolerante (Timestamp → Date),
+  retorno otimista e preservação na lista local. `services/authorship.ts` só cuida do
+  `serverTimestamp()`. Nenhum campo é gravado com `undefined`.
 
 ## Regras de negócio
 

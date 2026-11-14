@@ -123,3 +123,17 @@ e um editor poderia alterar `roles` e se promover a dono.
   - o membro (não dono) pode sair do espaço;
   - os papéis de dono são decididos por `ownerUid`, não por `roles`.
 - Limitação conhecida: o Leitor ainda vê os botões de edição; a gravação é recusada pelas regras.
+
+## Autoria (V5.3 — em andamento)
+
+- Documentos novos em `spaces/{spaceId}/...` podem ter, opcionalmente:
+  `createdBy: { uid, name?, email? }` e `createdAt` (Timestamp).
+- Campos opcionais: documentos antigos e dados do Pessoal continuam válidos sem autoria.
+- A autoria é gravada apenas na **criação**. Edição preserva `createdBy`/`createdAt` (merge).
+- A fatura guarda a autoria no próprio documento; as transações não recebem autoria.
+- `billPayments/{AAAA-MM_billId}` representa a marcação mais recente: ao marcar de novo, a autoria
+  é atualizada; `paidAt` continua separado.
+- **As regras atuais ainda não validam autoria.** `firestore.rules` segue igual: Leitor não grava,
+  Dono/Editor gravam livremente, e `createdBy` não está protegido contra omissão ou falsificação.
+  A autoria é **informativa** nesta etapa; o endurecimento das regras virá depois que a V5.3 estiver
+  publicada e validada (o PWA em cache ainda pode gravar sem autoria).

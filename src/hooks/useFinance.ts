@@ -19,13 +19,25 @@ import type {
   NewExpense,
   NewIncome,
 } from '../types/Finance'
+import type { Actor, Authorship } from '../types/Author'
 import { getErrorMessage } from '../utils/errors'
+import { withAuthorship } from '../utils/authorship'
 
 interface UseFinanceParams {
   root: string
   month: string
   toast: (message: string, type?: ToastType) => void
   confirm: (options: ConfirmOptions) => Promise<boolean>
+  actor?: Actor
+}
+
+/**
+ * Substitui o item na lista preservando a autoria já conhecida.
+ * Na edição o serviço grava com merge e não devolve autoria.
+ */
+function replaceItem<T extends { id: string } & Authorship>(current: T[], saved: T): T[] {
+  const previous = current.find((item) => item.id === saved.id)
+  return [...current.filter((item) => item.id !== saved.id), withAuthorship(saved, previous)]
 }
 
 /**
@@ -33,7 +45,7 @@ interface UseFinanceParams {
  * Recebe `root` (caminho Firestore) por parâmetro para suportar tanto o
  * espaço pessoal (`users/{uid}`) quanto espaços compartilhados (`spaces/{id}`).
  */
-export function useFinance({ root, month, toast, confirm }: UseFinanceParams) {
+export function useFinance({ root, month, toast, confirm, actor }: UseFinanceParams) {
   const [bills, setBills] = useState<Bill[]>([])
   const [payments, setPayments] = useState<BillPayment[]>([])
   const [incomes, setIncomes] = useState<Income[]>([])
@@ -62,8 +74,8 @@ export function useFinance({ root, month, toast, confirm }: UseFinanceParams) {
 
   const handleSaveBill = (bill: NewBill) =>
     runFinance(async () => {
-      const saved = await saveBill(root, bill)
-      setBills((current) => [...current.filter((item) => item.id !== saved.id), saved])
+      const saved = await saveBill(root, bill, actor)
+      setBills((current) => replaceItem(current, saved))
     }, `Conta "${bill.name.trim()}" salva.`)
 
   const handleDeleteBill = async (bill: Bill) => {
@@ -84,7 +96,7 @@ export function useFinance({ root, month, toast, confirm }: UseFinanceParams) {
 
   const handlePayBill = (bill: Bill, amount: number) =>
     void runFinance(async () => {
-      const payment = await markBillPaid(root, bill.id, month, amount)
+      const payment = await markBillPaid(root, bill.id, month, amount, actor)
       setPayments((current) => [...current.filter((item) => item.id !== payment.id), payment])
     }, `"${bill.name}" marcada como paga.`)
 
@@ -96,8 +108,8 @@ export function useFinance({ root, month, toast, confirm }: UseFinanceParams) {
 
   const handleSaveIncome = (income: NewIncome) =>
     runFinance(async () => {
-      const saved = await saveIncome(root, income)
-      setIncomes((current) => [...current.filter((item) => item.id !== saved.id), saved])
+      const saved = await saveIncome(root, income, actor)
+      setIncomes((current) => replaceItem(current, saved))
     }, `Receita "${income.name.trim()}" salva.`)
 
   const handleDeleteIncome = async (income: Income) => {
@@ -117,8 +129,8 @@ export function useFinance({ root, month, toast, confirm }: UseFinanceParams) {
 
   const handleSaveExpense = (expense: NewExpense) =>
     runFinance(async () => {
-      const saved = await saveExpense(root, expense)
-      setExpenses((current) => [...current.filter((item) => item.id !== saved.id), saved])
+      const saved = await saveExpense(root, expense, actor)
+      setExpenses((current) => replaceItem(current, saved))
     }, `Gasto "${expense.description.trim()}" salvo.`)
 
   const handleDeleteExpense = async (expense: Expense) => {

@@ -10,6 +10,7 @@ import {
   writeBatch,
 } from 'firebase/firestore'
 import { db } from '../firebase/firebase'
+import { createAuthorshipFields } from './authorship'
 import type {
   Bill,
   BillCategory,
@@ -21,7 +22,9 @@ import type {
   NewIncome,
   PaymentMethod,
 } from '../types/Finance'
+import type { Actor } from '../types/Author'
 import type { TransactionCategory } from '../types/Transaction'
+import { optimisticAuthorship, readAuthorship } from '../utils/authorship'
 
 function rootCollection(root: string, name: 'bills' | 'billPayments' | 'incomes' | 'expenses') {
   return collection(db, root, name)
@@ -41,11 +44,13 @@ export async function listBills(root: string): Promise<Bill[]> {
       amount: Number(data.amount ?? 0),
       variable: Boolean(data.variable),
       startMonth: String(data.startMonth ?? ''),
+      ...readAuthorship(data),
     }
   })
 }
 
-export async function saveBill(root: string, bill: NewBill): Promise<Bill> {
+export async function saveBill(root: string, bill: NewBill, actor?: Actor): Promise<Bill> {
+  const editing = Boolean(bill.id)
   const ref = bill.id ? doc(rootCollection(root, 'bills'), bill.id) : doc(rootCollection(root, 'bills'))
   const data = {
     name: bill.name.trim(),
@@ -56,8 +61,14 @@ export async function saveBill(root: string, bill: NewBill): Promise<Bill> {
     startMonth: bill.startMonth,
   }
 
-  await setDoc(ref, { ...data, updatedAt: serverTimestamp() })
-  return { id: ref.id, ...data }
+  if (editing) {
+    // Edição: merge preserva createdBy/createdAt do documento original.
+    await setDoc(ref, { ...data, updatedAt: serverTimestamp() }, { merge: true })
+    return { id: ref.id, ...data }
+  }
+
+  await setDoc(ref, { ...data, updatedAt: serverTimestamp(), ...createAuthorshipFields(actor) })
+  return { id: ref.id, ...data, ...optimisticAuthorship(actor) }
 }
 
 /** Exclui a conta e todos os pagamentos registrados dela. */
@@ -80,6 +91,7 @@ export async function listBillPayments(root: string): Promise<BillPayment[]> {
       billId: String(data.billId ?? ''),
       month: String(data.month ?? ''),
       amount: Number(data.amount ?? 0),
+      ...readAuthorship(data),
     }
   })
 }
@@ -89,6 +101,7 @@ export async function markBillPaid(
   billId: string,
   month: string,
   amount: number,
+  actor?: Actor,
 ): Promise<BillPayment> {
   const id = `${month}_${billId}`
   await setDoc(doc(rootCollection(root, 'billPayments'), id), {
@@ -96,8 +109,9 @@ export async function markBillPaid(
     month,
     amount,
     paidAt: serverTimestamp(),
+    ...createAuthorshipFields(actor),
   })
-  return { id, billId, month, amount }
+  return { id, billId, month, amount, ...optimisticAuthorship(actor) }
 }
 
 export async function unmarkBillPaid(root: string, billId: string, month: string): Promise<void> {
@@ -117,11 +131,13 @@ export async function listIncomes(root: string): Promise<Income[]> {
       recurring: Boolean(data.recurring),
       month: String(data.month ?? ''),
       day: Number(data.day ?? 1),
+      ...readAuthorship(data),
     }
   })
 }
 
-export async function saveIncome(root: string, income: NewIncome): Promise<Income> {
+export async function saveIncome(root: string, income: NewIncome, actor?: Actor): Promise<Income> {
+  const editing = Boolean(income.id)
   const ref = income.id
     ? doc(rootCollection(root, 'incomes'), income.id)
     : doc(rootCollection(root, 'incomes'))
@@ -133,8 +149,14 @@ export async function saveIncome(root: string, income: NewIncome): Promise<Incom
     day: Math.min(Math.max(Math.round(income.day), 1), 31),
   }
 
-  await setDoc(ref, { ...data, updatedAt: serverTimestamp() })
-  return { id: ref.id, ...data }
+  if (editing) {
+    // Edição: merge preserva createdBy/createdAt do documento original.
+    await setDoc(ref, { ...data, updatedAt: serverTimestamp() }, { merge: true })
+    return { id: ref.id, ...data }
+  }
+
+  await setDoc(ref, { ...data, updatedAt: serverTimestamp(), ...createAuthorshipFields(actor) })
+  return { id: ref.id, ...data, ...optimisticAuthorship(actor) }
 }
 
 export async function deleteIncome(root: string, incomeId: string): Promise<void> {
@@ -154,11 +176,13 @@ export async function listExpenses(root: string): Promise<Expense[]> {
       date: String(data.date ?? ''),
       category: (data.category ?? 'Outros') as TransactionCategory,
       method: (data.method ?? 'Pix') as PaymentMethod,
+      ...readAuthorship(data),
     }
   })
 }
 
-export async function saveExpense(root: string, expense: NewExpense): Promise<Expense> {
+export async function saveExpense(root: string, expense: NewExpense, actor?: Actor): Promise<Expense> {
+  const editing = Boolean(expense.id)
   const ref = expense.id
     ? doc(rootCollection(root, 'expenses'), expense.id)
     : doc(rootCollection(root, 'expenses'))
@@ -170,8 +194,14 @@ export async function saveExpense(root: string, expense: NewExpense): Promise<Ex
     method: expense.method,
   }
 
-  await setDoc(ref, { ...data, updatedAt: serverTimestamp() })
-  return { id: ref.id, ...data }
+  if (editing) {
+    // Edição: merge preserva createdBy/createdAt do documento original.
+    await setDoc(ref, { ...data, updatedAt: serverTimestamp() }, { merge: true })
+    return { id: ref.id, ...data }
+  }
+
+  await setDoc(ref, { ...data, updatedAt: serverTimestamp(), ...createAuthorshipFields(actor) })
+  return { id: ref.id, ...data, ...optimisticAuthorship(actor) }
 }
 
 export async function deleteExpense(root: string, expenseId: string): Promise<void> {

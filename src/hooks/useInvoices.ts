@@ -10,6 +10,7 @@ import {
   saveInvoice,
 } from '../services/firestoreService'
 import type { InvoiceSummary } from '../types/Invoice'
+import type { Actor } from '../types/Author'
 import type { Transaction } from '../types/Transaction'
 import { formatMonthLabel } from '../utils/invoiceReference'
 import { getErrorMessage } from '../utils/errors'
@@ -19,6 +20,7 @@ interface UseInvoicesParams {
   toast: (message: string, type?: ToastType) => void
   confirm: (options: ConfirmOptions) => Promise<boolean>
   resetFilters: () => void
+  actor?: Actor
 }
 
 function formatReferenceMonth(referenceMonth: string): string {
@@ -30,7 +32,7 @@ function formatReferenceMonth(referenceMonth: string): string {
  * `resetFilters` é chamado sempre que uma fatura é carregada, para a tabela
  * voltar a mostrar todos os lançamentos.
  */
-export function useInvoices({ root, toast, confirm, resetFilters }: UseInvoicesParams) {
+export function useInvoices({ root, toast, confirm, resetFilters, actor }: UseInvoicesParams) {
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([])
   const [selectedInvoiceId, setSelectedInvoiceId] = useState('')
   const [fileName, setFileName] = useState('')
@@ -94,7 +96,7 @@ export function useInvoices({ root, toast, confirm, resetFilters }: UseInvoicesP
         replacedLabel = ` Substituiu ${equivalent.invoice.fileName}.`
       }
 
-      const result = await saveInvoice(root, file.name, categorized, statement.card)
+      const result = await saveInvoice(root, file.name, categorized, statement.card, actor)
       const refreshedInvoices = await listInvoices(root)
 
       setInvoices(refreshedInvoices)

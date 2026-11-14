@@ -28,6 +28,7 @@ import { listBillPayments, listBills, listExpenses, listIncomes } from './servic
 import { listInvoices, loadInvoice } from './services/firestoreService'
 import { listMySpaces } from './services/spacesService'
 import type { ActiveScope, Space } from './types/Space'
+import type { Actor } from './types/Author'
 import { scopeRoot } from './firebase/paths'
 import { addMonths, formatDueDate } from './utils/invoiceReference'
 import { computeForecast, currentMonth } from './utils/monthPlan'
@@ -95,6 +96,23 @@ export default function Dashboard() {
     [activeScope, user],
   )
 
+  const uid = user?.uid
+  const displayName = user?.displayName
+  const email = user?.email
+
+  /**
+   * Ator das novas gravações. No Pessoal não há autoria.
+   * A fonte é sempre o usuário autenticado (nunca memberInfo).
+   */
+  const actor = useMemo<Actor | undefined>(() => {
+    if (!uid || activeScope.kind === 'personal') return undefined
+    return {
+      uid,
+      name: displayName || undefined,
+      email: email || undefined,
+    }
+  }, [activeScope.kind, uid, displayName, email])
+
   const setActiveScope = useCallback(
     (scope: ActiveScope) => {
       if (!user) return
@@ -141,7 +159,7 @@ export default function Dashboard() {
     setPayments,
     setIncomes,
     setExpenses,
-  } = useFinance({ root, month, toast, confirm })
+  } = useFinance({ root, month, toast, confirm, actor })
 
   const { rules, savingRule, setSavingRule, ruleMap, setRules, saveRule, deleteRule } = useRules({
     root,
@@ -175,6 +193,7 @@ export default function Dashboard() {
     toast,
     confirm,
     resetFilters: () => resetFiltersRef.current(),
+    actor,
   })
 
   const { allInvoices, setAllInvoices } = useInvoiceHistory({

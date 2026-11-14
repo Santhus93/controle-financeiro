@@ -11,9 +11,12 @@ import {
   writeBatch,
 } from 'firebase/firestore'
 import { db } from '../firebase/firebase'
+import { createAuthorshipFields } from './authorship'
 import type { InvoiceSummary, SaveInvoiceResult, SavedInvoice } from '../types/Invoice'
+import type { Actor } from '../types/Author'
 import type { Transaction } from '../types/Transaction'
 import { getInvoiceMonth } from '../utils/invoiceReference'
+import { optimisticAuthorship, readAuthorship } from '../utils/authorship'
 
 const FIRESTORE_BATCH_LIMIT = 450
 
@@ -146,6 +149,7 @@ function summaryFromSnapshot(id: string, data: Record<string, unknown>): Invoice
     totalRefunds: Number(data.totalRefunds ?? 0),
     totalPayments: Number(data.totalPayments ?? 0),
     importedAt: importedAt instanceof Timestamp ? importedAt.toDate() : null,
+    ...readAuthorship(data),
   }
 }
 
@@ -241,6 +245,7 @@ export async function saveInvoice(
   fileName: string,
   transactions: Transaction[],
   card = 'Nubank',
+  actor?: Actor,
 ): Promise<SaveInvoiceResult> {
   if (!transactions.length) {
     throw new Error('Não há lançamentos para salvar.')
@@ -270,6 +275,7 @@ export async function saveInvoice(
       ...totals,
       importedAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
+      ...createAuthorshipFields(actor),
     })
   })
 
@@ -291,6 +297,7 @@ export async function saveInvoice(
       ...totals,
       importedAt: new Date(),
       transactions,
+      ...optimisticAuthorship(actor),
     },
   }
 }
