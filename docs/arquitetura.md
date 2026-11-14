@@ -66,7 +66,8 @@ src/
 │   ├── Login.tsx            Entrar | Criar conta | Esqueci minha senha + Google
 │   ├── MonthOverview.tsx    Meu mês: resumo, previsão, vencimentos, receitas;
 │   │                        exibe o ExpensesPanel via children
-│   ├── ExpensesPanel.tsx, BillsManager.tsx, CashflowHistory.tsx, HistoryView.tsx
+│   ├── ExpensesPanel.tsx, SplitEditor.tsx (divisão de gastos), BillsManager.tsx,
+│   │                        CashflowHistory.tsx, HistoryView.tsx
 │   ├── FileUpload.tsx, SummaryCards.tsx, BudgetPanel.tsx, UncategorizedPanel.tsx
 │   ├── CategoryChart.tsx, SpendingChart.tsx, TopMerchants.tsx, Installments.tsx
 │   ├── TransactionsTable.tsx, CategoryRules.tsx, Skeleton.tsx
@@ -84,10 +85,10 @@ src/
 │   ├── invoices.css, budget.css, month.css, history.css
 │   ├── responsive.css (media queries por breakpoint), theme-dark.css (por último)
 │
-├── types/      Transaction.ts, Invoice.ts, Finance.ts, Author.ts
+├── types/      Transaction.ts, Invoice.ts, Finance.ts, Author.ts, Space.ts
 └── utils/      currency.ts, dates.ts, invoiceReference.ts, monthPlan.ts,
                 scopePermissions.ts (+ test), authorship.ts (+ test),
-                errors.ts (+ test), authErrors.ts (+ test)
+                split.ts (+ test), errors.ts (+ test), authErrors.ts (+ test)
 ```
 
 Gráficos (`CategoryChart`, `SpendingChart`, `HistoryView`, `CashflowHistory`) são carregados com `lazy()`.
@@ -149,6 +150,40 @@ Gráficos (`CategoryChart`, `SpendingChart`, `HistoryView`, `CashflowHistory`) s
   Classe única `.authorship-label` em `styles/month.css` (fonte pequena, cor muted,
   `overflow-wrap: anywhere`).
 
+## Divisão de gastos avulsos (V6.0 — Lote 1)
+
+- Só **Gastos Avulsos** de **Espaços compartilhados** podem ser divididos. Faturas, transações de
+  OFX/CSV, contas fixas, receitas e o espaço Pessoal ficam fora.
+- `types/Finance.ts`: `ExpenseSplit { paidByUid, shares }` e
+  `ExpenseShare { uid, name?, email?, amount }`; `Expense.split?` é opcional, então documentos
+  antigos continuam válidos. `name`/`email` são instantâneos visuais; a validação é sempre por
+  `uid ∈ memberUids`.
+- **`Expense.amount` continua sendo a única fonte do total.** A divisão é metadado: um gasto de
+  R$ 300 dividido em 150/100/50 continua valendo R$ 300 no Meu mês, na previsão e no Histórico.
+  Nenhum `Expense`, `Income` ou `Transaction` extra é criado por participante.
+- `Dashboard` monta `SpaceMember[]` somente em espaço compartilhado, a partir de
+  `space.memberUids` (ordem preservada) e `memberInfo`; para o próprio usuário usa também
+  `user.displayName`/`user.email`. No Pessoal a lista é vazia e a divisão não aparece.
+- `utils/split.ts` (puro): `toCents`, `fromCents`, `splitEvenly`, `validateExpenseSplit` e
+  `splitMemberLabel`. A divisão igual trabalha em centavos e distribui o resto um centavo por vez
+  aos primeiros membros da ordem recebida.
+- `components/SplitEditor.tsx` aparece no formulário apenas com
+  `isShared && canEdit && members.length >= 2`. Ativar seleciona todos os membros, define o
+  pagador (`currentUid`, se membro) e divide igualmente. Alterar participantes recalcula; edição
+  manual muda só aquele valor. O componente não salva sozinho.
+- `financeService.saveExpense` recebe os `memberUids` permitidos e **revalida** a divisão antes de
+  gravar: total > 0, pagador e participantes membros, pagador participante, ≥ 2 pessoas, sem uid
+  repetido, cada parte > 0 e soma em centavos igual ao total. `listExpenses` lê `split` com
+  tolerância: campo inválido vira gasto sem divisão, sem derrubar a carga.
+- Ao editar, remover a divisão grava `deleteField()` em `split`; a autoria original é preservada
+  pelo `merge`. A lista mostra “Dividido entre N pessoas · Pago por …” sem substituir descrição,
+  categoria, método nem “Lançado por”.
+- **Este lote não tem settlements**: edição e exclusão de gastos divididos continuam livres.
+  “A receber”/“A pagar” e os pagamentos entre membros entram no Lote 2.
+- `firestore.rules` não mudou: Dono/Editor podem gravar o gasto com `split`; Leitor continua
+  bloqueado. A validade dos membros e da soma é garantida pelo serviço e pela interface nesta
+  etapa; regras mais restritas ficam para o Lote 3.
+
 ## Regras de negócio
 
 **Tipos de lançamento** (`transactionClassifier.ts`):
@@ -183,6 +218,8 @@ Mudar a categoria de um lançamento muda todos do mesmo estabelecimento (`mercha
 
 ## Testes
 
-`npm test` (Vitest): 5 arquivos e 57 testes em `src/utils/` — caminhos e escopo salvo
+`npm test` (Vitest): 8 arquivos e 102 testes em `src/utils/` — caminhos e escopo salvo
 (`spaces.test.ts`), convites (`invites.test.ts`), permissões de escopo
-(`scopePermissions.test.ts`), erros (`errors.test.ts`) e autenticação (`authErrors.test.ts`).
+(`scopePermissions.test.ts`), erros (`errors.test.ts`), autenticação (`authErrors.test.ts`),
+autoria (`authorship.test.ts`), nome de exibição (`displayName.test.ts`) e divisão de gastos
+(`split.test.ts`).

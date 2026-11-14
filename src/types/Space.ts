@@ -18,6 +18,13 @@ export interface Space {
   createdAt: Date
 }
 
+/** Membro exibido na interface (divisão de gastos avulsos). */
+export interface SpaceMember {
+  uid: string
+  name?: string
+  email?: string
+}
+
 /** Escopo ativo: dados pessoais do usuário ou de um Espaço. */
 export type ActiveScope =
   | { kind: 'personal' }

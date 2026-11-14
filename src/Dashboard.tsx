@@ -27,7 +27,7 @@ import {
 import { listBillPayments, listBills, listExpenses, listIncomes } from './services/financeService'
 import { listInvoices, loadInvoice } from './services/firestoreService'
 import { listMySpaces } from './services/spacesService'
-import type { ActiveScope, Space } from './types/Space'
+import type { ActiveScope, Space, SpaceMember } from './types/Space'
 import type { Actor } from './types/Author'
 import { scopeRoot } from './firebase/paths'
 import { addMonths, formatDueDate } from './utils/invoiceReference'
@@ -122,6 +122,35 @@ export default function Dashboard() {
     [user],
   )
 
+  /**
+   * Membros do espaço ativo para a divisão de gastos.
+   * No Pessoal a lista é vazia. A ordem é a de `space.memberUids`.
+   */
+  const spaceMembers = useMemo<SpaceMember[]>(() => {
+    if (activeScope.kind !== 'space') return []
+
+    const { space } = activeScope
+
+    return space.memberUids.map((memberUid) => {
+      const info = space.memberInfo?.[memberUid]
+      const name =
+        (memberUid === uid ? displayName?.trim() : '') || info?.name?.trim() || ''
+      const memberEmail =
+        (memberUid === uid ? email?.trim() : '') || info?.email?.trim() || ''
+
+      return {
+        uid: memberUid,
+        ...(name ? { name } : {}),
+        ...(memberEmail ? { email: memberEmail } : {}),
+      }
+    })
+  }, [activeScope, uid, displayName, email])
+
+  const memberUids = useMemo(
+    () => spaceMembers.map((member) => member.uid),
+    [spaceMembers],
+  )
+
   const handleSpaceRenamed = useCallback(
     (updated: Space) => {
       setSpaces((current) =>
@@ -159,7 +188,7 @@ export default function Dashboard() {
     setPayments,
     setIncomes,
     setExpenses,
-  } = useFinance({ root, month, toast, confirm, actor })
+  } = useFinance({ root, month, toast, confirm, actor, memberUids })
 
   const { rules, savingRule, setSavingRule, ruleMap, setRules, saveRule, deleteRule } = useRules({
     root,
@@ -429,6 +458,8 @@ export default function Dashboard() {
             saving={savingFinance}
             canEdit={permissions.canEdit}
             isShared={permissions.isShared}
+            members={spaceMembers}
+            currentUid={user.uid}
             onPay={handlePayBill}
             onUnpay={handleUnpayBill}
             onOpenInvoice={openInvoice}

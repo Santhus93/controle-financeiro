@@ -1,10 +1,19 @@
 import { useState, type FormEvent } from 'react'
 import { Pencil, Plus, Trash2, Wallet, X } from 'lucide-react'
-import { PAYMENT_METHODS, type Expense, type NewExpense, type PaymentMethod } from '../types/Finance'
+import {
+  PAYMENT_METHODS,
+  type Expense,
+  type ExpenseSplit,
+  type NewExpense,
+  type PaymentMethod,
+} from '../types/Finance'
+import type { SpaceMember } from '../types/Space'
 import { TRANSACTION_CATEGORIES, type TransactionCategory } from '../types/Transaction'
 import { formatCurrency } from '../utils/currency'
 import { formatAuthorLabel } from '../utils/authorship'
 import { expensesForMonth, parseMoneyInput, toMoneyInput, todayIso } from '../utils/monthPlan'
+import { splitMemberLabel, validateExpenseSplit } from '../utils/split'
+import { SplitEditor } from './SplitEditor'
 
 interface ExpensesPanelProps {
   month: string
@@ -12,6 +21,8 @@ interface ExpensesPanelProps {
   saving: boolean
   canEdit?: boolean
   isShared?: boolean
+  members?: SpaceMember[]
+  currentUid?: string
   onSave: (expense: NewExpense) => Promise<boolean>
   onDelete: (expense: Expense) => void
 }
@@ -23,6 +34,7 @@ interface ExpenseForm {
   date: string
   category: TransactionCategory
   method: PaymentMethod
+  split?: ExpenseSplit
 }
 
 const CATEGORIES = TRANSACTION_CATEGORIES.filter((category) => category !== 'Não categorizado')
@@ -32,7 +44,23 @@ function formatShortDate(date: string): string {
   return `${day}/${month}`
 }
 
-export function ExpensesPanel({ month, expenses, saving, canEdit = true, isShared = false, onSave, onDelete }: ExpensesPanelProps) {
+/** "Pago por" usa o instantâneo gravado no share. */
+function payerLabel(split: ExpenseSplit): string {
+  const share = split.shares.find((item) => item.uid === split.paidByUid)
+  return share ? splitMemberLabel(share) : 'Membro'
+}
+
+export function ExpensesPanel({
+  month,
+  expenses,
+  saving,
+  canEdit = true,
+  isShared = false,
+  members = [],
+  currentUid = '',
+  onSave,
+  onDelete,
+}: ExpensesPanelProps) {
   const [form, setForm] = useState<ExpenseForm | null>(null)
   const [formError, setFormError] = useState('')
 
@@ -61,15 +89,27 @@ export function ExpensesPanel({ month, expenses, saving, canEdit = true, isShare
     if (!amount) return setFormError('Informe o valor do gasto.')
     if (!/^\d{4}-\d{2}-\d{2}$/.test(form.date)) return setFormError('Informe a data do gasto.')
 
+    if (form.split) {
+      const validation = validateExpenseSplit(
+        amount,
+        form.split,
+        members.map((member) => member.uid),
+      )
+      if (!validation.valid) return setFormError(validation.message)
+    }
+
     setFormError('')
-    const ok = await onSave({
+    const payload: NewExpense = {
       id: form.id,
       description: form.description,
       amount,
       date: form.date,
       category: form.category,
       method: form.method,
-    })
+    }
+    if (form.split) payload.split = form.split
+
+    const ok = await onSave(payload)
     if (ok) setForm(null)
   }
 
@@ -167,6 +207,18 @@ export function ExpensesPanel({ month, expenses, saving, canEdit = true, isShare
             </div>
           </div>
 
+          {isShared && canEdit && members.length >= 2 && (
+            <SplitEditor
+              key={form.id ?? 'new'}
+              total={parseMoneyInput(form.amount)}
+              members={members}
+              value={form.split}
+              currentUid={currentUid}
+              disabled={saving}
+              onChange={(split) => setForm((current) => (current ? { ...current, split } : current))}
+            />
+          )}
+
           <small className="finance-hint">
             Gastos no cartão de crédito não entram aqui: eles chegam pela fatura.
           </small>
@@ -193,6 +245,11 @@ export function ExpensesPanel({ month, expenses, saving, canEdit = true, isShare
               <div className="finance-info">
                 <strong>{expense.description}</strong>
                 <span>{expense.category} · {expense.method}</span>
+                {expense.split && (
+                  <small className="split-label">
+                    Dividido entre {expense.split.shares.length} pessoas · Pago por {payerLabel(expense.split)}
+                  </small>
+                )}
                 {author && <small className="authorship-label">Lançado por {author}</small>}
               </div>
               <div className="finance-amount">{formatCurrency(expense.amount)}</div>
@@ -210,6 +267,12 @@ export function ExpensesPanel({ month, expenses, saving, canEdit = true, isShare
                         date: expense.date,
                         category: expense.category,
                         method: expense.method,
+                        split: expense.split
+                          ? {
+                              paidByUid: expense.split.paidByUid,
+                              shares: expense.split.shares.map((share) => ({ ...share })),
+                            }
+                          : undefined,
                       })
                     }}
                   >

@@ -1,6 +1,7 @@
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDocs,
   query,
@@ -16,6 +17,8 @@ import type {
   BillCategory,
   BillPayment,
   Expense,
+  ExpenseShare,
+  ExpenseSplit,
   Income,
   NewBill,
   NewExpense,
@@ -25,9 +28,64 @@ import type {
 import type { Actor } from '../types/Author'
 import type { TransactionCategory } from '../types/Transaction'
 import { optimisticAuthorship, readAuthorship } from '../utils/authorship'
+import { fromCents, toCents, validateExpenseSplit } from '../utils/split'
 
 function rootCollection(root: string, name: 'bills' | 'billPayments' | 'incomes' | 'expenses') {
   return collection(db, root, name)
+}
+
+/**
+ * Lê a divisão sem lançar erro: documento antigo ou campo inválido devolve
+ * `undefined` e o gasto continua válido, apenas sem divisão.
+ */
+function readExpenseSplit(value: unknown): ExpenseSplit | undefined {
+  if (!value || typeof value !== 'object') return undefined
+
+  const raw = value as { paidByUid?: unknown; shares?: unknown }
+  const paidByUid = typeof raw.paidByUid === 'string' ? raw.paidByUid.trim() : ''
+  if (!paidByUid || !Array.isArray(raw.shares) || raw.shares.length < 2) return undefined
+
+  const shares: ExpenseShare[] = []
+
+  for (const item of raw.shares) {
+    if (!item || typeof item !== 'object') return undefined
+
+    const share = item as { uid?: unknown; name?: unknown; email?: unknown; amount?: unknown }
+    const uid = typeof share.uid === 'string' ? share.uid.trim() : ''
+    const amount = Number(share.amount)
+
+    if (!uid || !Number.isFinite(amount) || amount <= 0) return undefined
+
+    const name = typeof share.name === 'string' ? share.name.trim() : ''
+    const email = typeof share.email === 'string' ? share.email.trim() : ''
+
+    shares.push({
+      uid,
+      ...(name ? { name } : {}),
+      ...(email ? { email } : {}),
+      amount,
+    })
+  }
+
+  return { paidByUid, shares }
+}
+
+/** Normaliza a divisão para gravação: valores em centavos, sem campos `undefined`. */
+function normalizeExpenseSplit(split: ExpenseSplit): ExpenseSplit {
+  return {
+    paidByUid: split.paidByUid.trim(),
+    shares: split.shares.map((share) => {
+      const name = typeof share.name === 'string' ? share.name.trim() : ''
+      const email = typeof share.email === 'string' ? share.email.trim() : ''
+
+      return {
+        uid: share.uid.trim(),
+        ...(name ? { name } : {}),
+        ...(email ? { email } : {}),
+        amount: fromCents(toCents(share.amount)),
+      }
+    }),
+  }
 }
 
 // ---------- Contas fixas ----------
@@ -169,6 +227,7 @@ export async function listExpenses(root: string): Promise<Expense[]> {
   const snapshot = await getDocs(rootCollection(root, 'expenses'))
   return snapshot.docs.map((item) => {
     const data = item.data()
+    const split = readExpenseSplit(data.split)
     return {
       id: item.id,
       description: String(data.description ?? ''),
@@ -176,12 +235,18 @@ export async function listExpenses(root: string): Promise<Expense[]> {
       date: String(data.date ?? ''),
       category: (data.category ?? 'Outros') as TransactionCategory,
       method: (data.method ?? 'Pix') as PaymentMethod,
+      ...(split ? { split } : {}),
       ...readAuthorship(data),
     }
   })
 }
 
-export async function saveExpense(root: string, expense: NewExpense, actor?: Actor): Promise<Expense> {
+export async function saveExpense(
+  root: string,
+  expense: NewExpense,
+  actor?: Actor,
+  allowedMemberUids: string[] = [],
+): Promise<Expense> {
   const editing = Boolean(expense.id)
   const ref = expense.id
     ? doc(rootCollection(root, 'expenses'), expense.id)
@@ -194,14 +259,32 @@ export async function saveExpense(root: string, expense: NewExpense, actor?: Act
     method: expense.method,
   }
 
-  if (editing) {
-    // Edição: merge preserva createdBy/createdAt do documento original.
-    await setDoc(ref, { ...data, updatedAt: serverTimestamp() }, { merge: true })
-    return { id: ref.id, ...data }
+  let split: ExpenseSplit | undefined
+  if (expense.split) {
+    // O serviço revalida: a interface não é a única garantia.
+    const validation = validateExpenseSplit(expense.amount, expense.split, allowedMemberUids)
+    if (!validation.valid) throw new Error(validation.message)
+    split = normalizeExpenseSplit(expense.split)
   }
 
-  await setDoc(ref, { ...data, updatedAt: serverTimestamp(), ...createAuthorshipFields(actor) })
-  return { id: ref.id, ...data, ...optimisticAuthorship(actor) }
+  if (editing) {
+    // Edição: merge preserva createdBy/createdAt do documento original.
+    // Sem divisão, `deleteField()` remove uma divisão antiga do documento.
+    await setDoc(
+      ref,
+      { ...data, ...(split ? { split } : { split: deleteField() }), updatedAt: serverTimestamp() },
+      { merge: true },
+    )
+    return { id: ref.id, ...data, ...(split ? { split } : {}) }
+  }
+
+  await setDoc(ref, {
+    ...data,
+    ...(split ? { split } : {}),
+    updatedAt: serverTimestamp(),
+    ...createAuthorshipFields(actor),
+  })
+  return { id: ref.id, ...data, ...(split ? { split } : {}), ...optimisticAuthorship(actor) }
 }
 
 export async function deleteExpense(root: string, expenseId: string): Promise<void> {

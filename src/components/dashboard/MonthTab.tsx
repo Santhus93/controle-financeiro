@@ -2,6 +2,7 @@ import { ExpensesPanel } from '../ExpensesPanel'
 import { MonthOverview } from '../MonthOverview'
 import type { Bill, BillPayment, Expense, Income, NewExpense } from '../../types/Finance'
 import type { InvoiceSummary } from '../../types/Invoice'
+import type { SpaceMember } from '../../types/Space'
 import type { Forecast } from '../../utils/monthPlan'
 
 interface MonthTabProps {
@@ -16,6 +17,8 @@ interface MonthTabProps {
   saving: boolean
   canEdit?: boolean
   isShared?: boolean
+  members?: SpaceMember[]
+  currentUid?: string
   onPay: (bill: Bill, amount: number) => void
   onUnpay: (bill: Bill) => void
   onOpenInvoice: (invoiceId: string) => void
@@ -36,6 +39,8 @@ export function MonthTab({
   saving,
   canEdit = true,
   isShared = false,
+  members = [],
+  currentUid = '',
   onPay,
   onUnpay,
   onOpenInvoice,
@@ -67,6 +72,8 @@ export function MonthTab({
         saving={saving}
         canEdit={canEdit}
         isShared={isShared}
+        members={members}
+        currentUid={currentUid}
         onSave={onSaveExpense}
         onDelete={onDeleteExpense}
       />

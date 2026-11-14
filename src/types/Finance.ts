@@ -61,6 +61,22 @@ export const PAYMENT_METHODS = ['Pix', 'Débito', 'Dinheiro', 'Boleto'] as const
 
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number]
 
+/** Parte de um membro em um gasto dividido. `amount` é o valor devido, em reais. */
+export interface ExpenseShare {
+  uid: string
+  /** Instantâneo visual; a validação de membro é sempre feita por uid. */
+  name?: string
+  email?: string
+  amount: number
+}
+
+/** Divisão de um gasto avulso entre membros de um espaço compartilhado. */
+export interface ExpenseSplit {
+  /** Membro que desembolsou o valor total do gasto. */
+  paidByUid: string
+  shares: ExpenseShare[]
+}
+
 /** Gasto pontual fora do cartão (Pix, débito, dinheiro, boleto avulso). */
 export interface Expense extends Authorship {
   id: string
@@ -70,6 +86,8 @@ export interface Expense extends Authorship {
   date: string
   category: TransactionCategory
   method: PaymentMethod
+  /** Opcional: gastos antigos continuam válidos sem divisão. */
+  split?: ExpenseSplit
 }
 
 // Formulários não escolhem nem falsificam autoria: o serviço usa apenas o Actor.

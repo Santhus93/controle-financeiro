@@ -29,6 +29,8 @@ interface UseFinanceParams {
   toast: (message: string, type?: ToastType) => void
   confirm: (options: ConfirmOptions) => Promise<boolean>
   actor?: Actor
+  /** UIDs dos membros do espaço ativo; no Pessoal é vazio. */
+  memberUids?: string[]
 }
 
 /**
@@ -45,7 +47,7 @@ function replaceItem<T extends { id: string } & Authorship>(current: T[], saved:
  * Recebe `root` (caminho Firestore) por parâmetro para suportar tanto o
  * espaço pessoal (`users/{uid}`) quanto espaços compartilhados (`spaces/{id}`).
  */
-export function useFinance({ root, month, toast, confirm, actor }: UseFinanceParams) {
+export function useFinance({ root, month, toast, confirm, actor, memberUids = [] }: UseFinanceParams) {
   const [bills, setBills] = useState<Bill[]>([])
   const [payments, setPayments] = useState<BillPayment[]>([])
   const [incomes, setIncomes] = useState<Income[]>([])
@@ -129,7 +131,7 @@ export function useFinance({ root, month, toast, confirm, actor }: UseFinancePar
 
   const handleSaveExpense = (expense: NewExpense) =>
     runFinance(async () => {
-      const saved = await saveExpense(root, expense, actor)
+      const saved = await saveExpense(root, expense, actor, memberUids)
       setExpenses((current) => replaceItem(current, saved))
     }, `Gasto "${expense.description.trim()}" salvo.`)
 
