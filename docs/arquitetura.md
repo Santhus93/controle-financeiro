@@ -85,7 +85,7 @@ src/
 │
 ├── types/      Transaction.ts, Invoice.ts, Finance.ts
 └── utils/      currency.ts, dates.ts, invoiceReference.ts, monthPlan.ts,
-                errors.ts (+ test), authErrors.ts (+ test)
+                scopePermissions.ts (+ test), errors.ts (+ test), authErrors.ts (+ test)
 ```
 
 Gráficos (`CategoryChart`, `SpendingChart`, `HistoryView`, `CashflowHistory`) são carregados com `lazy()`.
@@ -100,6 +100,18 @@ Gráficos (`CategoryChart`, `SpendingChart`, `HistoryView`, `CashflowHistory`) s
 - "Esqueci minha senha" mostra sempre a mesma mensagem, sem revelar se o e-mail existe.
 - Entrar com Google num e-mail que já tem senha **não verificada** faz o Firebase remover a senha.
   Confirmar o e-mail antes evita isso.
+
+## Permissões de escopo (interface)
+
+- `utils/scopePermissions.ts` deriva `activeRole`, `canEdit`, `canManageMembers` e `isShared`
+  do escopo ativo em um único lugar; o `Dashboard` calcula uma vez com `useMemo`.
+- **Dono** é definido só por `space.ownerUid === uid`. `roles[uid] = 'owner'` sem esse vínculo
+  cai em Leitor. Papel ausente também cai em Leitor.
+- Pessoal: edita tudo, sem gestão de membros. Dono: edita e gerencia membros. Editor: edita, sem
+  gerenciar membros. Leitor: somente consulta (faixa `.reader-banner` no topo do conteúdo).
+- Componentes reutilizáveis recebem `canEdit?: boolean` (padrão `true`) e escondem apenas os
+  controles de escrita; dados, cálculos e navegação continuam visíveis.
+- A segurança real continua nas regras do Firestore; a interface não substitui as regras.
 
 ## Regras de negócio
 
@@ -135,4 +147,6 @@ Mudar a categoria de um lançamento muda todos do mesmo estabelecimento (`mercha
 
 ## Testes
 
-`npm test` (Vitest): `src/utils/errors.test.ts` (8) e `src/utils/authErrors.test.ts` (17).
+`npm test` (Vitest): 5 arquivos e 57 testes em `src/utils/` — caminhos e escopo salvo
+(`spaces.test.ts`), convites (`invites.test.ts`), permissões de escopo
+(`scopePermissions.test.ts`), erros (`errors.test.ts`) e autenticação (`authErrors.test.ts`).

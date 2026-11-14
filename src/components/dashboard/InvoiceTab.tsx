@@ -33,6 +33,7 @@ interface InvoiceTabProps {
   error: string
   invoiceLoading: boolean
   deleting: boolean
+  canEdit?: boolean
   rules: CategoryRule[]
   budget: Budget
   savingBudget: boolean
@@ -70,6 +71,7 @@ export function InvoiceTab({
   error,
   invoiceLoading,
   deleting,
+  canEdit = true,
   rules,
   budget,
   savingBudget,
@@ -122,19 +124,27 @@ export function InvoiceTab({
             </select>
           </label>
 
-          <button
-            type="button"
-            className="delete-invoice-button"
-            disabled={!selectedInvoiceId || deleting || invoiceLoading}
-            onClick={() => void onDeleteInvoice()}
-          >
-            {deleting ? <LoaderCircle className="spin" size={16} /> : <Trash2 size={16} />}
-            Excluir
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              className="delete-invoice-button"
+              disabled={!selectedInvoiceId || deleting || invoiceLoading}
+              onClick={() => void onDeleteInvoice()}
+            >
+              {deleting ? <LoaderCircle className="spin" size={16} /> : <Trash2 size={16} />}
+              Excluir
+            </button>
+          )}
         </div>
       </section>
 
-      <FileUpload fileName={fileName} loading={loading} error={error} onFile={onFile} />
+      <FileUpload
+        fileName={fileName}
+        loading={loading}
+        error={error}
+        canEdit={canEdit}
+        onFile={onFile}
+      />
 
       {invoiceLoading && (
         <>
@@ -150,11 +160,13 @@ export function InvoiceTab({
             transactions={transactions}
             budget={budget}
             saving={savingBudget}
+            canEdit={canEdit}
             onSave={onSaveBudget}
           />
           <UncategorizedPanel
             transactions={transactions}
             saving={savingRule}
+            canEdit={canEdit}
             onAssign={onAssignCategory}
           />
           <Suspense
@@ -178,6 +190,7 @@ export function InvoiceTab({
             search={search}
             categoryFilter={categoryFilter}
             typeFilter={typeFilter}
+            canEdit={canEdit}
             onSearch={onSearch}
             onCategoryFilter={onCategoryFilter}
             onTypeFilter={onTypeFilter}
@@ -187,6 +200,7 @@ export function InvoiceTab({
             rules={rules}
             transactions={transactions}
             saving={savingRule}
+            canEdit={canEdit}
             onChange={onRuleChange}
             onDelete={onDeleteRule}
             onReapply={onReapplyRules}

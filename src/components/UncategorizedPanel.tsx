@@ -7,6 +7,7 @@ import { formatCurrency } from '../utils/currency'
 interface UncategorizedPanelProps {
   transactions: Transaction[]
   saving: boolean
+  canEdit?: boolean
   onAssign: (title: string, category: TransactionCategory) => void
 }
 
@@ -22,7 +23,7 @@ const ASSIGNABLE_CATEGORIES = TRANSACTION_CATEGORIES.filter(
   (category) => category !== 'Não categorizado',
 )
 
-export function UncategorizedPanel({ transactions, saving, onAssign }: UncategorizedPanelProps) {
+export function UncategorizedPanel({ transactions, saving, canEdit = true, onAssign }: UncategorizedPanelProps) {
   const groups = new Map<string, MerchantGroup>()
 
   transactions
@@ -68,8 +69,9 @@ export function UncategorizedPanel({ transactions, saving, onAssign }: Uncategor
           <span className="eyebrow">Classificação rápida</span>
           <h2>Não categorizados</h2>
           <p className="uncat-subtitle">
-            Escolha uma categoria por estabelecimento. A regra é salva na sua conta e
-            aplicada automaticamente nas próximas importações.
+            {canEdit
+              ? 'Escolha uma categoria por estabelecimento. A regra é salva na sua conta e aplicada automaticamente nas próximas importações.'
+              : 'Estes lançamentos ainda não têm categoria definida.'}
           </p>
         </div>
         <div className="uncat-total">
@@ -89,20 +91,24 @@ export function UncategorizedPanel({ transactions, saving, onAssign }: Uncategor
               <span>{group.count}x</span>
             </div>
             <span className="uncat-amount">{formatCurrency(group.total)}</span>
-            <select
-              className="category-select"
-              value=""
-              disabled={saving}
-              onChange={(event) => {
-                const value = event.target.value as TransactionCategory
-                if (value) onAssign(group.originalTitle, value)
-              }}
-            >
-              <option value="">Definir categoria...</option>
-              {ASSIGNABLE_CATEGORIES.map((category) => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
+            {canEdit ? (
+              <select
+                className="category-select"
+                value=""
+                disabled={saving}
+                onChange={(event) => {
+                  const value = event.target.value as TransactionCategory
+                  if (value) onAssign(group.originalTitle, value)
+                }}
+              >
+                <option value="">Definir categoria...</option>
+                {ASSIGNABLE_CATEGORIES.map((category) => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            ) : (
+              <span>Não categorizado</span>
+            )}
           </div>
         ))}
       </div>

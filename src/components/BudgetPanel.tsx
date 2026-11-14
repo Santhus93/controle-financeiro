@@ -9,6 +9,7 @@ interface BudgetPanelProps {
   transactions: Transaction[]
   budget: Budget
   saving: boolean
+  canEdit?: boolean
   onSave: (budget: Budget) => void
 }
 
@@ -65,7 +66,7 @@ function BudgetBar({ label, spent, limit }: { label: string; spent: number; limi
   )
 }
 
-export function BudgetPanel({ transactions, budget, saving, onSave }: BudgetPanelProps) {
+export function BudgetPanel({ transactions, budget, saving, canEdit = true, onSave }: BudgetPanelProps) {
   const [editing, setEditing] = useState(false)
   const [monthlyInput, setMonthlyInput] = useState('')
   const [categoryInputs, setCategoryInputs] = useState<Record<string, string>>({})
@@ -120,7 +121,7 @@ export function BudgetPanel({ transactions, budget, saving, onSave }: BudgetPane
     .filter(([category]) => !(category in budget.categories))
     .reduce((sum, [, value]) => sum + value, 0)
 
-  if (editing) {
+  if (editing && canEdit) {
     return (
       <section className="panel budget-panel">
         <div className="panel-heading">
@@ -194,9 +195,11 @@ export function BudgetPanel({ transactions, budget, saving, onSave }: BudgetPane
           <strong>Defina um orçamento mensal</strong>
           <span>Estabeleça limites por categoria e acompanhe quanto já foi usado em cada fatura.</span>
         </div>
-        <button type="button" className="button-primary" onClick={startEditing}>
-          Definir orçamento
-        </button>
+        {canEdit && (
+          <button type="button" className="button-primary" onClick={startEditing}>
+            Definir orçamento
+          </button>
+        )}
       </section>
     )
   }
@@ -208,9 +211,11 @@ export function BudgetPanel({ transactions, budget, saving, onSave }: BudgetPane
           <span className="eyebrow">Orçamento</span>
           <h2>Limites desta fatura</h2>
         </div>
-        <button type="button" className="rules-reapply" onClick={startEditing}>
-          <Pencil size={14} /> Editar
-        </button>
+        {canEdit && (
+          <button type="button" className="rules-reapply" onClick={startEditing}>
+            <Pencil size={14} /> Editar
+          </button>
+        )}
       </div>
 
       <div className={`budget-alert ${alerts.length ? (overCount ? 'over' : 'warning') : 'ok'}`}>

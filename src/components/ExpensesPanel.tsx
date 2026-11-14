@@ -9,6 +9,7 @@ interface ExpensesPanelProps {
   month: string
   expenses: Expense[]
   saving: boolean
+  canEdit?: boolean
   onSave: (expense: NewExpense) => Promise<boolean>
   onDelete: (expense: Expense) => void
 }
@@ -29,7 +30,7 @@ function formatShortDate(date: string): string {
   return `${day}/${month}`
 }
 
-export function ExpensesPanel({ month, expenses, saving, onSave, onDelete }: ExpensesPanelProps) {
+export function ExpensesPanel({ month, expenses, saving, canEdit = true, onSave, onDelete }: ExpensesPanelProps) {
   const [form, setForm] = useState<ExpenseForm | null>(null)
   const [formError, setFormError] = useState('')
 
@@ -80,14 +81,14 @@ export function ExpensesPanel({ month, expenses, saving, onSave, onDelete }: Exp
             {monthExpenses.length} gasto(s) · {formatCurrency(total)} no mês
           </span>
         </div>
-        {!form && (
+        {canEdit && !form && (
           <button type="button" className="button-primary small" onClick={openNew}>
             <Plus size={16} /> Novo gasto
           </button>
         )}
       </div>
 
-      {form && (
+      {canEdit && form && (
         <form className="finance-form" onSubmit={submit}>
           <div className="finance-form-head">
             <strong>{form.id ? 'Editar gasto' : 'Novo gasto avulso'}</strong>
@@ -190,34 +191,40 @@ export function ExpensesPanel({ month, expenses, saving, onSave, onDelete }: Exp
               <span>{expense.category} · {expense.method}</span>
             </div>
             <div className="finance-amount">{formatCurrency(expense.amount)}</div>
-            <div className="finance-actions">
-              <button
-                type="button"
-                aria-label="Editar"
-                onClick={() => {
-                  setFormError('')
-                  setForm({
-                    id: expense.id,
-                    description: expense.description,
-                    amount: toMoneyInput(expense.amount),
-                    date: expense.date,
-                    category: expense.category,
-                    method: expense.method,
-                  })
-                }}
-              >
-                <Pencil size={15} />
-              </button>
-              <button type="button" className="danger" aria-label="Excluir" disabled={saving} onClick={() => onDelete(expense)}>
-                <Trash2 size={15} />
-              </button>
-            </div>
+            {canEdit && (
+              <div className="finance-actions">
+                <button
+                  type="button"
+                  aria-label="Editar"
+                  onClick={() => {
+                    setFormError('')
+                    setForm({
+                      id: expense.id,
+                      description: expense.description,
+                      amount: toMoneyInput(expense.amount),
+                      date: expense.date,
+                      category: expense.category,
+                      method: expense.method,
+                    })
+                  }}
+                >
+                  <Pencil size={15} />
+                </button>
+                <button type="button" className="danger" aria-label="Excluir" disabled={saving} onClick={() => onDelete(expense)}>
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            )}
           </div>
         ))}
         {!monthExpenses.length && !form && (
           <div className="empty-mini finance-empty expenses-empty">
             <Wallet size={22} />
-            <span>Nenhum gasto avulso neste mês. Registre aqui o que você paga no Pix, débito ou dinheiro.</span>
+            <span>
+              {canEdit
+                ? 'Nenhum gasto avulso neste mês. Registre aqui o que você paga no Pix, débito ou dinheiro.'
+                : 'Nenhum gasto avulso neste mês.'}
+            </span>
           </div>
         )}
       </div>

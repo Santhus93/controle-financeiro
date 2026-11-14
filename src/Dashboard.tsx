@@ -32,6 +32,7 @@ import { scopeRoot } from './firebase/paths'
 import { addMonths, formatDueDate } from './utils/invoiceReference'
 import { computeForecast, currentMonth } from './utils/monthPlan'
 import { getErrorMessage } from './utils/errors'
+import { getScopePermissions } from './utils/scopePermissions'
 import packageJson from '../package.json'
 
 /**
@@ -87,6 +88,12 @@ export default function Dashboard() {
 
   /** Raiz Firestore do escopo ativo. */
   const root = user ? scopeRoot(user.uid, activeScope) : ''
+
+  /** Permissões visuais derivadas uma única vez para o escopo ativo. */
+  const permissions = useMemo(
+    () => getScopePermissions(activeScope, user?.uid),
+    [activeScope, user],
+  )
 
   const setActiveScope = useCallback(
     (scope: ActiveScope) => {
@@ -355,11 +362,18 @@ export default function Dashboard() {
         }}
         onSpacesChange={setSpaces}
         onSpaceRenamed={handleSpaceRenamed}
+        canManageMembers={permissions.canManageMembers}
         toast={toast}
       />
 
       <main className="container-app">
         <ViewTabs view={view} onChange={setView} />
+
+        {permissions.isShared && permissions.activeRole === 'viewer' && (
+          <div className="reader-banner" role="status">
+            Você está no modo Leitor. É possível visualizar os dados, mas não fazer alterações.
+          </div>
+        )}
 
         {!user.emailVerified &&
           user.providerData.some((provider) => provider.providerId === 'password') && (
@@ -393,6 +407,7 @@ export default function Dashboard() {
             expenses={expenses}
             forecast={forecast}
             saving={savingFinance}
+            canEdit={permissions.canEdit}
             onPay={handlePayBill}
             onUnpay={handleUnpayBill}
             onOpenInvoice={openInvoice}
@@ -409,6 +424,7 @@ export default function Dashboard() {
             bills={bills}
             incomes={incomes}
             saving={savingFinance}
+            canEdit={permissions.canEdit}
             onSaveBill={handleSaveBill}
             onDeleteBill={(bill) => void handleDeleteBill(bill)}
             onSaveIncome={handleSaveIncome}
@@ -433,6 +449,7 @@ export default function Dashboard() {
             error={error}
             invoiceLoading={invoiceLoading}
             deleting={deleting}
+            canEdit={permissions.canEdit}
             rules={rules}
             budget={budget}
             savingBudget={savingBudget}

@@ -6,6 +6,7 @@ interface FileUploadProps {
   fileName?: string
   loading: boolean
   error?: string
+  canEdit?: boolean
   onFile: (file: File) => void
 }
 
@@ -28,10 +29,12 @@ function isMobileDevice(): boolean {
 
 const DESKTOP_ACCEPT = [...ACCEPTED_EXTENSIONS, 'application/x-ofx', 'text/csv'].join(',')
 
-export function FileUpload({ fileName, loading, error, onFile }: FileUploadProps) {
+export function FileUpload({ fileName, loading, error, canEdit = true, onFile }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
   const mobile = isMobileDevice()
+
+  if (!canEdit) return null
 
   const receiveFile = (file?: File) => {
     if (file) onFile(file)

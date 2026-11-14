@@ -42,6 +42,7 @@ interface MonthOverviewProps {
   expenses: Expense[]
   forecast: Forecast | null
   saving: boolean
+  canEdit?: boolean
   onPay: (bill: Bill, amount: number) => void
   onUnpay: (bill: Bill) => void
   onOpenInvoice: (invoiceId: string) => void
@@ -137,6 +138,7 @@ export function MonthOverview({
   expenses,
   forecast,
   saving,
+  canEdit = true,
   onPay,
   onUnpay,
   onOpenInvoice,
@@ -196,9 +198,11 @@ export function MonthOverview({
               internet...). O app soma tudo com a fatura e mostra quanto sobra.
             </span>
           </div>
-          <button type="button" className="button-primary" onClick={onManage}>
-            Cadastrar contas e receitas
-          </button>
+          {canEdit && (
+            <button type="button" className="button-primary" onClick={onManage}>
+              Cadastrar contas e receitas
+            </button>
+          )}
         </section>
       )}
 
@@ -258,9 +262,11 @@ export function MonthOverview({
             <span className="eyebrow">Saídas do mês</span>
             <h2>Vencimentos</h2>
           </div>
-          <button type="button" className="rules-reapply" onClick={onManage}>
-            Gerenciar contas
-          </button>
+          {canEdit && (
+            <button type="button" className="rules-reapply" onClick={onManage}>
+              Gerenciar contas
+            </button>
+          )}
         </div>
 
         <div className="due-list">
@@ -301,7 +307,7 @@ export function MonthOverview({
                   {bill.variable && !payment && <small>estimado</small>}
                 </div>
 
-                {payingId === bill.id ? (
+                {canEdit && (payingId === bill.id ? (
                   <div className="due-pay-form">
                     <input
                       inputMode="decimal"
@@ -322,7 +328,7 @@ export function MonthOverview({
                   <button type="button" className="due-action" disabled={saving} onClick={() => startPaying(bill)}>
                     <Check size={14} /> Pagar
                   </button>
-                )}
+                ))}
               </div>
             )
           })}

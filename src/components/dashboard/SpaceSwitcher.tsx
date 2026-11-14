@@ -16,12 +16,14 @@ interface SpaceSwitcherProps {
   onScopeChange: (scope: ActiveScope) => void
   onSpacesChange: (spaces: Space[]) => void
   onSpaceRenamed?: (space: Space) => void
+  canManageMembers: boolean
   toast: (message: string, type?: 'success' | 'error' | 'info') => void
 }
 
 function getRoleLabel(space: Space, uid: string): string {
-  const role = space.roles?.[uid] ?? (space.ownerUid === uid ? 'owner' : 'viewer')
-  return ROLE_LABELS[role]
+  if (space.ownerUid === uid) return ROLE_LABELS.owner
+  const stored = space.roles?.[uid]
+  return ROLE_LABELS[stored === 'editor' ? 'editor' : 'viewer']
 }
 
 function sortSpaces(list: Space[]): Space[] {
@@ -39,6 +41,7 @@ export function SpaceSwitcher({
   onScopeChange,
   onSpacesChange,
   onSpaceRenamed,
+  canManageMembers,
   toast,
 }: SpaceSwitcherProps) {
   const { user } = useAuth()
@@ -258,7 +261,6 @@ export function SpaceSwitcher({
             {/* Espaços */}
             {spaces.map((space) => {
               const isActive = activeScope.kind === 'space' && activeScope.space.id === space.id
-              const isOwner = space.ownerUid === uid
               const roleLabel = getRoleLabel(space, uid)
               const memberCount = space.memberUids.length
 
@@ -299,7 +301,7 @@ export function SpaceSwitcher({
                         <Users size={13} />
                       </button>
                     )}
-                    {isActive && isOwner && (
+                    {isActive && canManageMembers && (
                       <button
                         type="button"
                         className="space-switcher-rename-btn"

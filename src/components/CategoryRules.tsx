@@ -9,6 +9,7 @@ interface CategoryRulesProps {
   rules: CategoryRule[]
   transactions: Transaction[]
   saving: boolean
+  canEdit?: boolean
   onChange: (rule: CategoryRule, category: TransactionCategory) => void
   onDelete: (rule: CategoryRule) => void
   onReapply: () => void
@@ -18,6 +19,7 @@ export function CategoryRules({
   rules,
   transactions,
   saving,
+  canEdit = true,
   onChange,
   onDelete,
   onReapply,
@@ -38,14 +40,16 @@ export function CategoryRules({
           {open ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
         </button>
 
-        <button
-          type="button"
-          className="rules-reapply"
-          disabled={saving || !rules.length || !transactions.length}
-          onClick={onReapply}
-        >
-          <RefreshCw size={15} /> Reaplicar nesta fatura
-        </button>
+        {canEdit && (
+          <button
+            type="button"
+            className="rules-reapply"
+            disabled={saving || !rules.length || !transactions.length}
+            onClick={onReapply}
+          >
+            <RefreshCw size={15} /> Reaplicar nesta fatura
+          </button>
+        )}
       </div>
 
       {open && (
@@ -72,27 +76,33 @@ export function CategoryRules({
                     <td><code>{rule.pattern}</code></td>
                     <td>{countInInvoice(rule)}</td>
                     <td>
-                      <select
-                        className="category-select"
-                        value={rule.category}
-                        disabled={saving}
-                        onChange={(event) => onChange(rule, event.target.value as TransactionCategory)}
-                      >
-                        {TRANSACTION_CATEGORIES.map((category) => (
-                          <option key={category} value={category}>{category}</option>
-                        ))}
-                      </select>
+                      {canEdit ? (
+                        <select
+                          className="category-select"
+                          value={rule.category}
+                          disabled={saving}
+                          onChange={(event) => onChange(rule, event.target.value as TransactionCategory)}
+                        >
+                          {TRANSACTION_CATEGORIES.map((category) => (
+                            <option key={category} value={category}>{category}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span>{rule.category}</span>
+                      )}
                     </td>
                     <td className="money">
-                      <button
-                        type="button"
-                        className="rule-delete"
-                        disabled={saving}
-                        onClick={() => onDelete(rule)}
-                        aria-label="Excluir regra"
-                      >
-                        <Trash2 size={15} />
-                      </button>
+                      {canEdit && (
+                        <button
+                          type="button"
+                          className="rule-delete"
+                          disabled={saving}
+                          onClick={() => onDelete(rule)}
+                          aria-label="Excluir regra"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

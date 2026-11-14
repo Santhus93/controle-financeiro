@@ -26,6 +26,7 @@ interface DashboardHeaderProps {
   onScopeChange: (scope: ActiveScope) => void
   onSpacesChange: (spaces: Space[]) => void
   onSpaceRenamed: (space: Space) => void
+  canManageMembers: boolean
   toast: (message: string, type?: 'success' | 'error' | 'info') => void
 }
 
@@ -49,6 +50,7 @@ export function DashboardHeader({
   onScopeChange,
   onSpacesChange,
   onSpaceRenamed,
+  canManageMembers,
   toast,
 }: DashboardHeaderProps) {
   const spaceName =
@@ -71,6 +73,7 @@ export function DashboardHeader({
                 onScopeChange={onScopeChange}
                 onSpacesChange={onSpacesChange}
                 onSpaceRenamed={onSpaceRenamed}
+                canManageMembers={canManageMembers}
                 toast={toast}
               />
               <button

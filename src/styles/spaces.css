@@ -256,6 +256,28 @@
   letter-spacing: .08em;
 }
 
+/* Faixa de somente leitura em espaço compartilhado (Leitor) */
+.reader-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 11px 14px;
+  border: 1px solid rgba(124,58,237,.22);
+  border-radius: 12px;
+  background: rgba(124,58,237,.08);
+  color: var(--purple);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+html[data-theme="dark"] .reader-banner {
+  border-color: rgba(167,139,250,.28);
+  background: rgba(167,139,250,.12);
+  color: #ddd6fe;
+}
+
 /* Tema escuro */
 html[data-theme="dark"] .space-switcher-menu {
   background: var(--panel);

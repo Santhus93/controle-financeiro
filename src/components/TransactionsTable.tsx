@@ -11,6 +11,7 @@ interface TransactionsTableProps {
   search: string
   categoryFilter: string
   typeFilter: string
+  canEdit?: boolean
   onSearch: (value: string) => void
   onCategoryFilter: (value: string) => void
   onTypeFilter: (value: string) => void
@@ -19,6 +20,7 @@ interface TransactionsTableProps {
 
 export function TransactionsTable(props: TransactionsTableProps) {
   const total = props.transactions.reduce((sum, item) => sum + item.amount, 0)
+  const canEdit = props.canEdit ?? true
 
   return (
     <section className="panel table-panel">
@@ -82,17 +84,21 @@ export function TransactionsTable(props: TransactionsTableProps) {
                   <span className={`type-badge ${item.type}`}>{TYPE_LABELS[item.type]}</span>
                 </td>
                 <td className="cell-category">
-                  <select
-                    className="category-select"
-                    value={item.category}
-                    onChange={(event) =>
-                      props.onCategoryChange(item.id, event.target.value as TransactionCategory)
-                    }
-                  >
-                    {TRANSACTION_CATEGORIES.map((category) => (
-                      <option key={category}>{category}</option>
-                    ))}
-                  </select>
+                  {canEdit ? (
+                    <select
+                      className="category-select"
+                      value={item.category}
+                      onChange={(event) =>
+                        props.onCategoryChange(item.id, event.target.value as TransactionCategory)
+                      }
+                    >
+                      {TRANSACTION_CATEGORIES.map((category) => (
+                        <option key={category}>{category}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span>{item.category}</span>
+                  )}
                 </td>
                 <td className={`money cell-amount ${item.amount < 0 ? 'credit' : ''}`}>
                   {formatCurrency(item.amount)}

@@ -17,6 +17,7 @@ interface BillsManagerProps {
   bills: Bill[]
   incomes: Income[]
   saving: boolean
+  canEdit?: boolean
   onSaveBill: (bill: NewBill) => Promise<boolean>
   onDeleteBill: (bill: Bill) => void
   onSaveIncome: (income: NewIncome) => Promise<boolean>
@@ -47,6 +48,7 @@ export function BillsManager({
   bills,
   incomes,
   saving,
+  canEdit = true,
   onSaveBill,
   onDeleteBill,
   onSaveIncome,
@@ -136,7 +138,7 @@ export function BillsManager({
             <h2>Contas fixas</h2>
             <span className="result-count">{bills.length} conta(s) · {formatCurrency(monthlyBills)} por mês</span>
           </div>
-          {!billForm && (
+          {canEdit && !billForm && (
             <button
               type="button"
               className="button-primary small"
@@ -151,7 +153,7 @@ export function BillsManager({
           )}
         </div>
 
-        {billForm && (
+        {canEdit && billForm && (
           <form className="finance-form" onSubmit={submitBill}>
             <div className="finance-form-head">
               <strong>{billForm.id ? 'Editar conta' : 'Nova conta fixa'}</strong>
@@ -277,30 +279,32 @@ export function BillsManager({
                 {formatCurrency(bill.amount)}
                 {bill.variable && <small>estimado</small>}
               </div>
-              <div className="finance-actions">
-                <button
-                  type="button"
-                  aria-label="Editar"
-                  onClick={() => {
-                    setIncomeForm(null)
-                    setFormError('')
-                    setBillForm({
-                      id: bill.id,
-                      name: bill.name,
-                      category: bill.category,
-                      dueDay: String(bill.dueDay),
-                      amount: toMoneyInput(bill.amount),
-                      variable: bill.variable,
-                      startMonth: bill.startMonth,
-                    })
-                  }}
-                >
-                  <Pencil size={15} />
-                </button>
-                <button type="button" className="danger" aria-label="Excluir" disabled={saving} onClick={() => onDeleteBill(bill)}>
-                  <Trash2 size={15} />
-                </button>
-              </div>
+              {canEdit && (
+                <div className="finance-actions">
+                  <button
+                    type="button"
+                    aria-label="Editar"
+                    onClick={() => {
+                      setIncomeForm(null)
+                      setFormError('')
+                      setBillForm({
+                        id: bill.id,
+                        name: bill.name,
+                        category: bill.category,
+                        dueDay: String(bill.dueDay),
+                        amount: toMoneyInput(bill.amount),
+                        variable: bill.variable,
+                        startMonth: bill.startMonth,
+                      })
+                    }}
+                  >
+                    <Pencil size={15} />
+                  </button>
+                  <button type="button" className="danger" aria-label="Excluir" disabled={saving} onClick={() => onDeleteBill(bill)}>
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              )}
             </div>
           ))}
           {!bills.length && !billForm && (
@@ -317,7 +321,7 @@ export function BillsManager({
             <h2>Receitas</h2>
             <span className="result-count">{formatCurrency(monthlyIncome)} recorrente por mês</span>
           </div>
-          {!incomeForm && (
+          {canEdit && !incomeForm && (
             <button
               type="button"
               className="button-primary small"
@@ -332,7 +336,7 @@ export function BillsManager({
           )}
         </div>
 
-        {incomeForm && (
+        {canEdit && incomeForm && (
           <form className="finance-form" onSubmit={submitIncome}>
             <div className="finance-form-head">
               <strong>{incomeForm.id ? 'Editar receita' : 'Nova receita'}</strong>
@@ -437,29 +441,31 @@ export function BillsManager({
                 </span>
               </div>
               <div className="finance-amount positive">{formatCurrency(income.amount)}</div>
-              <div className="finance-actions">
-                <button
-                  type="button"
-                  aria-label="Editar"
-                  onClick={() => {
-                    setBillForm(null)
-                    setFormError('')
-                    setIncomeForm({
-                      id: income.id,
-                      name: income.name,
-                      amount: toMoneyInput(income.amount),
-                      recurring: income.recurring,
-                      month: income.month,
-                      day: String(income.day),
-                    })
-                  }}
-                >
-                  <Pencil size={15} />
-                </button>
-                <button type="button" className="danger" aria-label="Excluir" disabled={saving} onClick={() => onDeleteIncome(income)}>
-                  <Trash2 size={15} />
-                </button>
-              </div>
+              {canEdit && (
+                <div className="finance-actions">
+                  <button
+                    type="button"
+                    aria-label="Editar"
+                    onClick={() => {
+                      setBillForm(null)
+                      setFormError('')
+                      setIncomeForm({
+                        id: income.id,
+                        name: income.name,
+                        amount: toMoneyInput(income.amount),
+                        recurring: income.recurring,
+                        month: income.month,
+                        day: String(income.day),
+                      })
+                    }}
+                  >
+                    <Pencil size={15} />
+                  </button>
+                  <button type="button" className="danger" aria-label="Excluir" disabled={saving} onClick={() => onDeleteIncome(income)}>
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              )}
             </div>
           ))}
           {!incomes.length && !incomeForm && (
