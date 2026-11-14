@@ -8,16 +8,23 @@ import {
   type PaymentMethod,
 } from '../types/Finance'
 import type { SpaceMember } from '../types/Space'
+import type { Settlement } from '../types/Settlement'
 import { TRANSACTION_CATEGORIES, type TransactionCategory } from '../types/Transaction'
 import { formatCurrency } from '../utils/currency'
 import { formatAuthorLabel } from '../utils/authorship'
 import { expensesForMonth, parseMoneyInput, toMoneyInput, todayIso } from '../utils/monthPlan'
-import { splitMemberLabel, validateExpenseSplit } from '../utils/split'
+import {
+  settlementsForExpense,
+  shareBalances,
+  splitMemberLabel,
+  validateExpenseSplit,
+} from '../utils/split'
 import { SplitEditor } from './SplitEditor'
 
 interface ExpensesPanelProps {
   month: string
   expenses: Expense[]
+  settlements?: Settlement[]
   saving: boolean
   canEdit?: boolean
   isShared?: boolean
@@ -39,6 +46,12 @@ interface ExpenseForm {
 
 const CATEGORIES = TRANSACTION_CATEGORIES.filter((category) => category !== 'Não categorizado')
 
+const SPLIT_STATUS_LABELS = {
+  pending: 'Pendente',
+  partial: 'Parcial',
+  paid: 'Pago',
+} as const
+
 function formatShortDate(date: string): string {
   const [, month, day] = date.split('-')
   return `${day}/${month}`
@@ -50,9 +63,32 @@ function payerLabel(split: ExpenseSplit): string {
   return share ? splitMemberLabel(share) : 'Membro'
 }
 
+function expenseSplitSummary(expense: Expense, settlements: Settlement[]) {
+  const list = settlementsForExpense(expense.id, settlements)
+  const balances = shareBalances(expense, settlements)
+  const debtorBalances = balances.filter((b) => b.uid !== expense.split?.paidByUid)
+
+  if (debtorBalances.length === 0) {
+    return { status: 'pending' as const, settlementCount: list.length }
+  }
+
+  const allPaid = debtorBalances.every((b) => b.status === 'paid')
+  if (allPaid) {
+    return { status: 'paid' as const, settlementCount: list.length }
+  }
+
+  const anyReceived = debtorBalances.some((b) => b.received > 0)
+  if (anyReceived) {
+    return { status: 'partial' as const, settlementCount: list.length }
+  }
+
+  return { status: 'pending' as const, settlementCount: list.length }
+}
+
 export function ExpensesPanel({
   month,
   expenses,
+  settlements = [],
   saving,
   canEdit = true,
   isShared = false,
@@ -66,6 +102,8 @@ export function ExpensesPanel({
 
   const monthExpenses = expensesForMonth(expenses, month)
   const total = monthExpenses.reduce((sum, item) => sum + item.amount, 0)
+
+  const isFormLocked = Boolean(form?.id && settlementsForExpense(form.id, settlements).length > 0)
 
   const openNew = () => {
     const today = todayIso()
@@ -139,6 +177,12 @@ export function ExpensesPanel({
             </button>
           </div>
 
+          {isFormLocked && (
+            <div className="finance-locked-alert">
+              Este gasto já possui acertos. Desfaça os acertos antes de alterar a divisão, o valor ou a data.
+            </div>
+          )}
+
           <div className="finance-grid">
             <label className="budget-field wide">
               <span>Descrição</span>
@@ -159,6 +203,7 @@ export function ExpensesPanel({
                 <input
                   inputMode="decimal"
                   value={form.amount}
+                  disabled={isFormLocked}
                   placeholder="0,00"
                   onChange={(event) => setForm({ ...form, amount: event.target.value })}
                 />
@@ -171,6 +216,7 @@ export function ExpensesPanel({
                 <input
                   type="date"
                   value={form.date}
+                  disabled={isFormLocked}
                   onChange={(event) => setForm({ ...form, date: event.target.value })}
                 />
               </div>
@@ -215,6 +261,7 @@ export function ExpensesPanel({
               value={form.split}
               currentUid={currentUid}
               disabled={saving}
+              locked={isFormLocked}
               onChange={(split) => setForm((current) => (current ? { ...current, split } : current))}
             />
           )}
@@ -236,6 +283,10 @@ export function ExpensesPanel({
       <div className="finance-list">
         {monthExpenses.map((expense) => {
           const author = isShared ? formatAuthorLabel(expense) : null
+          const hasSplit = Boolean(expense.split)
+          const splitInfo = hasSplit ? expenseSplitSummary(expense, settlements) : null
+          const hasSettlements = settlementsForExpense(expense.id, settlements).length > 0
+
           return (
             <div className="finance-row" key={expense.id}>
               <div className="finance-day expense">
@@ -245,9 +296,10 @@ export function ExpensesPanel({
               <div className="finance-info">
                 <strong>{expense.description}</strong>
                 <span>{expense.category} · {expense.method}</span>
-                {expense.split && (
+                {expense.split && splitInfo && (
                   <small className="split-label">
-                    Dividido entre {expense.split.shares.length} pessoas · Pago por {payerLabel(expense.split)}
+                    Dividido entre {expense.split.shares.length} pessoas · Pago por {payerLabel(expense.split)} · Status: {SPLIT_STATUS_LABELS[splitInfo.status]}
+                    {splitInfo.settlementCount > 0 ? ` (${splitInfo.settlementCount} acerto(s))` : ''}
                   </small>
                 )}
                 {author && <small className="authorship-label">Lançado por {author}</small>}
@@ -278,7 +330,18 @@ export function ExpensesPanel({
                   >
                     <Pencil size={15} />
                   </button>
-                  <button type="button" className="danger" aria-label="Excluir" disabled={saving} onClick={() => onDelete(expense)}>
+                  <button
+                    type="button"
+                    className="danger"
+                    aria-label="Excluir"
+                    disabled={saving || hasSettlements}
+                    title={
+                      hasSettlements
+                        ? 'Este gasto possui acertos. Desfaça todos os acertos antes de excluir.'
+                        : undefined
+                    }
+                    onClick={() => onDelete(expense)}
+                  >
                     <Trash2 size={15} />
                   </button>
                 </div>

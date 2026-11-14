@@ -178,11 +178,22 @@ Gráficos (`CategoryChart`, `SpendingChart`, `HistoryView`, `CashflowHistory`) s
 - Ao editar, remover a divisão grava `deleteField()` em `split`; a autoria original é preservada
   pelo `merge`. A lista mostra “Dividido entre N pessoas · Pago por …” sem substituir descrição,
   categoria, método nem “Lançado por”.
-- **Este lote não tem settlements**: edição e exclusão de gastos divididos continuam livres.
-  “A receber”/“A pagar” e os pagamentos entre membros entram no Lote 2.
-- `firestore.rules` não mudou: Dono/Editor podem gravar o gasto com `split`; Leitor continua
-  bloqueado. A validade dos membros e da soma é garantida pelo serviço e pela interface nesta
-  etapa; regras mais restritas ficam para o Lote 3.
+- **Acertos e liquidação (V6.0 — Lote 2)**:
+  - `types/Settlement.ts`: `Settlement { id, expenseId, fromUid, toUid, amount, ...Authorship }`.
+    Não persiste month, status nem saldos: tudo é sempre derivado.
+  - `Settlement` **não é receita, despesa nem transação**: não entra no Meu mês, na previsão, na sobra
+    nem no Histórico. `Expense.amount` continua sendo a única fonte do valor do gasto.
+  - Cálculos derivados em `utils/split.ts`: `splitStatus`, `shareBalances`, `receivablesFor`, `payablesFor`,
+    `remainingForShare`. Trabalham sempre em centavos e filtram estritamente por `toUid === split.paidByUid`.
+  - **Trava de Expense**: gasto com ao menos um acerto bloqueia alteração de valor, data e participantes/valores
+    da divisão, além de bloquear exclusão do gasto. Descrição, categoria e método continuam editáveis.
+    A trava é validada na interface e no serviço (`financeService`).
+  - `components/SettlementsPanel.tsx`: exibido no Meu mês em espaços compartilhados com resumo
+    ("A receber" e "A pagar"), listagem por gasto, formulário de acerto inline e histórico com opção
+    de desfazer (Dono/Editor). Leitor tem visão somente leitura.
+- `firestore.rules` não mudou neste lote: Dono/Editor podem gravar em `spaces/{spaceId}/settlements`;
+  Leitor continua bloqueado pela regra genérica. A validação de teto e participantes é garantida
+  pelo serviço; regras específicas entram no Lote 3.
 
 ## Regras de negócio
 
@@ -218,7 +229,7 @@ Mudar a categoria de um lançamento muda todos do mesmo estabelecimento (`mercha
 
 ## Testes
 
-`npm test` (Vitest): 8 arquivos e 102 testes em `src/utils/` — caminhos e escopo salvo
+`npm test` (Vitest): 9 arquivos em `src/utils/` (incluindo `settlements.test.ts`) — caminhos e escopo salvo
 (`spaces.test.ts`), convites (`invites.test.ts`), permissões de escopo
 (`scopePermissions.test.ts`), erros (`errors.test.ts`), autenticação (`authErrors.test.ts`),
 autoria (`authorship.test.ts`), nome de exibição (`displayName.test.ts`) e divisão de gastos

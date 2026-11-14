@@ -25,6 +25,7 @@ import {
   rulesToMap,
 } from './services/categoryRulesService'
 import { listBillPayments, listBills, listExpenses, listIncomes } from './services/financeService'
+import { listSettlements } from './services/settlementsService'
 import { listInvoices, loadInvoice } from './services/firestoreService'
 import { listMySpaces } from './services/spacesService'
 import type { ActiveScope, Space, SpaceMember } from './types/Space'
@@ -175,7 +176,11 @@ export default function Dashboard() {
     payments,
     incomes,
     expenses,
+    settlements,
     savingFinance,
+    handleCreateSettlement,
+    handleDeleteSettlement,
+    setSettlements,
     handleSaveBill,
     handleDeleteBill,
     handlePayBill,
@@ -319,6 +324,7 @@ export default function Dashboard() {
       setPayments([])
       setIncomes([])
       setExpenses([])
+      setSettlements([])
       setInvoices([])
       setSelectedInvoiceId('')
       setFileName('')
@@ -338,7 +344,7 @@ export default function Dashboard() {
           }
         }
 
-        const [foundBudget, foundBills, foundPayments, foundIncomes, foundExpenses, foundInvoices] =
+        const [foundBudget, foundBills, foundPayments, foundIncomes, foundExpenses, foundInvoices, foundSettlements] =
           await Promise.all([
             loadBudget(root),
             listBills(root),
@@ -346,6 +352,7 @@ export default function Dashboard() {
             listIncomes(root),
             listExpenses(root),
             listInvoices(root),
+            activeScope.kind === 'space' ? listSettlements(root) : Promise.resolve([]),
           ])
         if (cancelled) return
 
@@ -355,6 +362,7 @@ export default function Dashboard() {
         setPayments(foundPayments)
         setIncomes(foundIncomes)
         setExpenses(foundExpenses)
+        setSettlements(foundSettlements)
         setInvoices(foundInvoices)
 
         if (foundInvoices.length > 0) {
@@ -460,6 +468,9 @@ export default function Dashboard() {
             isShared={permissions.isShared}
             members={spaceMembers}
             currentUid={user.uid}
+            settlements={settlements}
+            onCreateSettlement={handleCreateSettlement}
+            onDeleteSettlement={handleDeleteSettlement}
             onPay={handlePayBill}
             onUnpay={handleUnpayBill}
             onOpenInvoice={openInvoice}

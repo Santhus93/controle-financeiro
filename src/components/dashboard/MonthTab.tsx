@@ -1,8 +1,10 @@
 import { ExpensesPanel } from '../ExpensesPanel'
 import { MonthOverview } from '../MonthOverview'
+import { SettlementsPanel } from '../SettlementsPanel'
 import type { Bill, BillPayment, Expense, Income, NewExpense } from '../../types/Finance'
 import type { InvoiceSummary } from '../../types/Invoice'
 import type { SpaceMember } from '../../types/Space'
+import type { NewSettlement, Settlement } from '../../types/Settlement'
 import type { Forecast } from '../../utils/monthPlan'
 
 interface MonthTabProps {
@@ -13,12 +15,15 @@ interface MonthTabProps {
   payments: BillPayment[]
   incomes: Income[]
   expenses: Expense[]
+  settlements?: Settlement[]
   forecast: Forecast | null
   saving: boolean
   canEdit?: boolean
   isShared?: boolean
   members?: SpaceMember[]
   currentUid?: string
+  onCreateSettlement?: (expense: Expense, settlement: NewSettlement) => Promise<boolean>
+  onDeleteSettlement?: (settlement: Settlement) => Promise<boolean>
   onPay: (bill: Bill, amount: number) => void
   onUnpay: (bill: Bill) => void
   onOpenInvoice: (invoiceId: string) => void
@@ -35,12 +40,15 @@ export function MonthTab({
   payments,
   incomes,
   expenses,
+  settlements = [],
   forecast,
   saving,
   canEdit = true,
   isShared = false,
   members = [],
   currentUid = '',
+  onCreateSettlement,
+  onDeleteSettlement,
   onPay,
   onUnpay,
   onOpenInvoice,
@@ -69,6 +77,7 @@ export function MonthTab({
       <ExpensesPanel
         month={month}
         expenses={expenses}
+        settlements={settlements}
         saving={saving}
         canEdit={canEdit}
         isShared={isShared}
@@ -77,6 +86,18 @@ export function MonthTab({
         onSave={onSaveExpense}
         onDelete={onDeleteExpense}
       />
+      {isShared && onCreateSettlement && onDeleteSettlement && (
+        <SettlementsPanel
+          currentUid={currentUid}
+          expenses={expenses}
+          settlements={settlements}
+          members={members}
+          canEdit={canEdit}
+          isShared={isShared}
+          onCreateSettlement={onCreateSettlement}
+          onDeleteSettlement={onDeleteSettlement}
+        />
+      )}
     </MonthOverview>
   )
 }

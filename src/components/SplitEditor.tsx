@@ -11,6 +11,7 @@ interface SplitEditorProps {
   value?: ExpenseSplit
   currentUid: string
   disabled?: boolean
+  locked?: boolean
   onChange: (split: ExpenseSplit | undefined) => void
 }
 
@@ -34,6 +35,7 @@ export function SplitEditor({
   value,
   currentUid,
   disabled = false,
+  locked = false,
   onChange,
 }: SplitEditorProps) {
   // Valores monetários são não controlados para não atrapalhar a digitação.
@@ -73,7 +75,7 @@ export function SplitEditor({
   }
 
   const toggleParticipant = (uid: string) => {
-    if (!value || disabled) return
+    if (!value || disabled || locked) return
 
     const selected = value.shares.map((share) => share.uid)
     const isSelected = selected.includes(uid)
@@ -90,7 +92,7 @@ export function SplitEditor({
   }
 
   const changeAmount = (uid: string, text: string) => {
-    if (!value) return
+    if (!value || locked) return
 
     const amount = parseMoneyInput(text)
     onChange({
@@ -111,9 +113,20 @@ export function SplitEditor({
   return (
     <div className="split-editor">
       <label className="split-toggle">
-        <input type="checkbox" checked={Boolean(value)} disabled={disabled} onChange={handleToggle} />
+        <input
+          type="checkbox"
+          checked={Boolean(value)}
+          disabled={disabled || locked}
+          onChange={handleToggle}
+        />
         <span>Dividir entre membros</span>
       </label>
+
+      {locked && (
+        <small className="split-message locked">
+          Divisão bloqueada porque este gasto já possui acertos. Desfaça os acertos antes de alterar a divisão.
+        </small>
+      )}
 
       {value && (
         <div className="split-body">
@@ -121,7 +134,7 @@ export function SplitEditor({
             <span>Quem pagou?</span>
             <select
               value={value.paidByUid}
-              disabled={disabled}
+              disabled={disabled || locked}
               onChange={(event) => onChange({ ...value, paidByUid: event.target.value })}
             >
               {value.shares.map((share) => (
@@ -144,9 +157,13 @@ export function SplitEditor({
                     <input
                       type="checkbox"
                       checked={Boolean(share)}
-                      disabled={disabled || (Boolean(share) && isPayer)}
+                      disabled={disabled || locked || (Boolean(share) && isPayer)}
                       title={
-                        share && isPayer ? 'Quem pagou precisa continuar na divisão.' : undefined
+                        share && isPayer
+                          ? 'Quem pagou precisa continuar na divisão.'
+                          : locked
+                          ? 'Divisão bloqueada com acertos pendentes/pagos.'
+                          : undefined
                       }
                       onChange={() => toggleParticipant(member.uid)}
                     />
@@ -160,7 +177,7 @@ export function SplitEditor({
                         key={`${member.uid}-${revision}`}
                         inputMode="decimal"
                         defaultValue={toMoneyInput(share.amount)}
-                        disabled={disabled}
+                        disabled={disabled || locked}
                         aria-label={`Valor de ${memberLabel(member)}`}
                         onChange={(event) => changeAmount(member.uid, event.target.value)}
                       />

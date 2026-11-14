@@ -28,7 +28,8 @@ import type {
 import type { Actor } from '../types/Author'
 import type { TransactionCategory } from '../types/Transaction'
 import { optimisticAuthorship, readAuthorship } from '../utils/authorship'
-import { fromCents, toCents, validateExpenseSplit } from '../utils/split'
+import type { Settlement } from '../types/Settlement'
+import { areSplitsEqual, fromCents, toCents, validateExpenseSplit } from '../utils/split'
 
 function rootCollection(root: string, name: 'bills' | 'billPayments' | 'incomes' | 'expenses') {
   return collection(db, root, name)
@@ -246,8 +247,26 @@ export async function saveExpense(
   expense: NewExpense,
   actor?: Actor,
   allowedMemberUids: string[] = [],
+  currentSettlements: Settlement[] = [],
+  existingExpense?: Expense,
 ): Promise<Expense> {
   const editing = Boolean(expense.id)
+
+  if (editing && expense.id) {
+    const hasSettlements = currentSettlements.some((s) => s.expenseId === expense.id)
+    if (hasSettlements && existingExpense) {
+      const amountChanged = toCents(expense.amount) !== toCents(existingExpense.amount)
+      const dateChanged = expense.date !== existingExpense.date
+      const splitChanged = !areSplitsEqual(expense.split, existingExpense.split)
+
+      if (amountChanged || dateChanged || splitChanged) {
+        throw new Error(
+          'Este gasto já possui acertos. Desfaça os acertos antes de alterar a divisão, o valor ou a data.',
+        )
+      }
+    }
+  }
+
   const ref = expense.id
     ? doc(rootCollection(root, 'expenses'), expense.id)
     : doc(rootCollection(root, 'expenses'))
@@ -287,6 +306,13 @@ export async function saveExpense(
   return { id: ref.id, ...data, ...(split ? { split } : {}), ...optimisticAuthorship(actor) }
 }
 
-export async function deleteExpense(root: string, expenseId: string): Promise<void> {
+export async function deleteExpense(
+  root: string,
+  expenseId: string,
+  currentSettlements: Settlement[] = [],
+): Promise<void> {
+  if (currentSettlements.some((s) => s.expenseId === expenseId)) {
+    throw new Error('Este gasto possui acertos. Desfaça todos os acertos antes de excluir.')
+  }
   await deleteDoc(doc(rootCollection(root, 'expenses'), expenseId))
 }

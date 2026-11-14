@@ -1,4 +1,5 @@
-import type { ExpenseShare, ExpenseSplit } from '../types/Finance'
+import type { Expense, ExpenseShare, ExpenseSplit } from '../types/Finance'
+import type { Settlement } from '../types/Settlement'
 
 /** Converte reais em centavos inteiros, sem erro de ponto flutuante. */
 export function toCents(value: number): number {
@@ -107,4 +108,223 @@ export function splitMemberLabel(share: ExpenseShare): string {
   if (email) return email
 
   return 'Membro'
+}
+
+// ---------- Saldos e acertos (V6.0 Lote 2) ----------
+
+export type SplitStatus = 'pending' | 'partial' | 'paid'
+
+export interface ShareBalance {
+  uid: string
+  name?: string
+  email?: string
+  due: number
+  received: number
+  pending: number
+  status: SplitStatus
+}
+
+export interface SettlementLine {
+  expenseId: string
+  description: string
+  date: string
+  counterpartUid: string
+  counterpartName?: string
+  counterpartEmail?: string
+  paidByUid: string
+  due: number
+  received: number
+  pending: number
+  status: SplitStatus
+}
+
+/** Status derivado; nunca é persistido. */
+export function splitStatus(due: number, received: number): SplitStatus {
+  const dueCents = toCents(due)
+  const receivedCents = toCents(received)
+
+  if (receivedCents <= 0) return 'pending'
+  if (receivedCents >= dueCents) return 'paid'
+  return 'partial'
+}
+
+export function settlementsForExpense(
+  expenseId: string,
+  settlements: Settlement[],
+): Settlement[] {
+  return sortSettlements(settlements.filter((settlement) => settlement.expenseId === expenseId))
+}
+
+/** Ordem determinística: createdAt crescente e, no empate, id. */
+function sortSettlements(settlements: Settlement[]): Settlement[] {
+  return [...settlements].sort((a, b) => {
+    const aTime = a.createdAt instanceof Date ? a.createdAt.getTime() : 0
+    const bTime = b.createdAt instanceof Date ? b.createdAt.getTime() : 0
+    if (aTime !== bTime) return aTime - bTime
+    return a.id.localeCompare(b.id)
+  })
+}
+
+function receivedCentsFor(
+  expense: Expense,
+  fromUid: string,
+  settlements: Settlement[],
+): number {
+  const paidByUid = expense.split?.paidByUid
+  if (!paidByUid) return 0
+
+  return settlements.reduce((sum, settlement) => {
+    if (
+      settlement.expenseId !== expense.id ||
+      settlement.fromUid !== fromUid ||
+      settlement.toUid !== paidByUid
+    ) {
+      return sum
+    }
+    return sum + toCents(settlement.amount)
+  }, 0)
+}
+
+/** Saldo de cada participante do gasto, incluindo a parte do pagador. */
+export function shareBalances(expense: Expense, settlements: Settlement[]): ShareBalance[] {
+  if (!expense.split) return []
+
+  return expense.split.shares.map((share) => {
+    const dueCents = toCents(share.amount)
+    const receivedCents = receivedCentsFor(expense, share.uid, settlements)
+    const pendingCents = Math.max(dueCents - receivedCents, 0)
+    const due = fromCents(dueCents)
+    const received = fromCents(receivedCents)
+
+    return {
+      uid: share.uid,
+      ...(share.name ? { name: share.name } : {}),
+      ...(share.email ? { email: share.email } : {}),
+      due,
+      received,
+      pending: fromCents(pendingCents),
+      status: splitStatus(due, received),
+    }
+  })
+}
+
+/** Quanto ainda falta para uma parte específica. */
+export function remainingForShare(
+  expense: Expense,
+  fromUid: string,
+  settlements: Settlement[],
+): number {
+  if (!expense.split || fromUid === expense.split.paidByUid) return 0
+
+  const share = expense.split.shares.find((item) => item.uid === fromUid)
+  if (!share) return 0
+
+  const pendingCents = Math.max(
+    toCents(share.amount) - receivedCentsFor(expense, fromUid, settlements),
+    0,
+  )
+
+  return fromCents(pendingCents)
+}
+
+function lineFor(
+  expense: Expense,
+  share: ExpenseShare,
+  counterpart: { uid: string; name?: string; email?: string },
+  settlements: Settlement[],
+): SettlementLine {
+  const dueCents = toCents(share.amount)
+  const receivedCents = receivedCentsFor(expense, share.uid, settlements)
+  const pendingCents = Math.max(dueCents - receivedCents, 0)
+  const due = fromCents(dueCents)
+  const received = fromCents(receivedCents)
+  const name = counterpart.name?.trim() ?? ''
+  const email = counterpart.email?.trim() ?? ''
+
+  return {
+    expenseId: expense.id,
+    description: expense.description,
+    date: expense.date,
+    counterpartUid: counterpart.uid,
+    ...(name ? { counterpartName: name } : {}),
+    ...(email ? { counterpartEmail: email } : {}),
+    paidByUid: expense.split?.paidByUid ?? '',
+    due,
+    received,
+    pending: fromCents(pendingCents),
+    status: splitStatus(due, received),
+  }
+}
+
+/**
+ * Compara duas divisões ignorando a ordem das partes.
+ * Utilizada pela trava de gastos para permitir apenas edições cosméticas
+ * quando houver acertos vinculados.
+ */
+export function areSplitsEqual(a?: ExpenseSplit, b?: ExpenseSplit): boolean {
+  if (!a && !b) return true
+  if (!a || !b) return false
+  if (a.paidByUid !== b.paidByUid) return false
+  if (a.shares.length !== b.shares.length) return false
+
+  for (const aShare of a.shares) {
+    const bShare = b.shares.find((item) => item.uid === aShare.uid)
+    if (!bShare) return false
+    if (toCents(aShare.amount) !== toCents(bShare.amount)) return false
+  }
+
+  return true
+}
+
+function sortLines(lines: SettlementLine[]): SettlementLine[] {
+  return lines.sort((a, b) => {
+    if (a.date !== b.date) return b.date.localeCompare(a.date)
+    if (a.description !== b.description) {
+      return a.description.localeCompare(b.description, 'pt-BR')
+    }
+    return a.counterpartUid.localeCompare(b.counterpartUid)
+  })
+}
+
+/** Linhas que o pagador tem a receber (a parte dos demais participantes). */
+export function receivablesFor(
+  uid: string,
+  expenses: Expense[],
+  settlements: Settlement[],
+): SettlementLine[] {
+  const lines: SettlementLine[] = []
+
+  expenses.forEach((expense) => {
+    const split = expense.split
+    if (!split || split.paidByUid !== uid) return
+
+    split.shares.forEach((share) => {
+      if (share.uid === uid) return
+      lines.push(lineFor(expense, share, share, settlements))
+    })
+  })
+
+  return sortLines(lines)
+}
+
+/** Linhas que o participante tem a pagar ao pagador do gasto. */
+export function payablesFor(
+  uid: string,
+  expenses: Expense[],
+  settlements: Settlement[],
+): SettlementLine[] {
+  const lines: SettlementLine[] = []
+
+  expenses.forEach((expense) => {
+    const split = expense.split
+    if (!split || split.paidByUid === uid) return
+
+    const ownShare = split.shares.find((share) => share.uid === uid)
+    if (!ownShare) return
+
+    const payer = split.shares.find((share) => share.uid === split.paidByUid)
+    lines.push(lineFor(expense, ownShare, payer ?? { uid: split.paidByUid }, settlements))
+  })
+
+  return sortLines(lines)
 }

@@ -10,6 +10,7 @@ import {
   saveIncome,
   unmarkBillPaid,
 } from '../services/financeService'
+import { createSettlement, deleteSettlement } from '../services/settlementsService'
 import type {
   Bill,
   BillPayment,
@@ -20,6 +21,7 @@ import type {
   NewIncome,
 } from '../types/Finance'
 import type { Actor, Authorship } from '../types/Author'
+import type { NewSettlement, Settlement } from '../types/Settlement'
 import { getErrorMessage } from '../utils/errors'
 import { withAuthorship } from '../utils/authorship'
 
@@ -43,7 +45,7 @@ function replaceItem<T extends { id: string } & Authorship>(current: T[], saved:
 }
 
 /**
- * Contas fixas, pagamentos, receitas e gastos avulsos.
+ * Contas fixas, pagamentos, receitas, gastos avulsos e acertos entre membros.
  * Recebe `root` (caminho Firestore) por parâmetro para suportar tanto o
  * espaço pessoal (`users/{uid}`) quanto espaços compartilhados (`spaces/{id}`).
  */
@@ -52,6 +54,7 @@ export function useFinance({ root, month, toast, confirm, actor, memberUids = []
   const [payments, setPayments] = useState<BillPayment[]>([])
   const [incomes, setIncomes] = useState<Income[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
+  const [settlements, setSettlements] = useState<Settlement[]>([])
   const [savingFinance, setSavingFinance] = useState(false)
 
   const notifyError = (cause: unknown) => toast(getErrorMessage(cause), 'error')
@@ -131,7 +134,8 @@ export function useFinance({ root, month, toast, confirm, actor, memberUids = []
 
   const handleSaveExpense = (expense: NewExpense) =>
     runFinance(async () => {
-      const saved = await saveExpense(root, expense, actor, memberUids)
+      const existing = expenses.find((item) => item.id === expense.id)
+      const saved = await saveExpense(root, expense, actor, memberUids, settlements, existing)
       setExpenses((current) => replaceItem(current, saved))
     }, `Gasto "${expense.description.trim()}" salvo.`)
 
@@ -145,9 +149,30 @@ export function useFinance({ root, month, toast, confirm, actor, memberUids = []
     if (!ok) return
 
     await runFinance(async () => {
-      await deleteExpense(root, expense.id)
+      await deleteExpense(root, expense.id, settlements)
       setExpenses((current) => current.filter((item) => item.id !== expense.id))
     }, `Gasto "${expense.description}" excluído.`)
+  }
+
+  const handleCreateSettlement = (expense: Expense, settlement: NewSettlement) =>
+    runFinance(async () => {
+      const saved = await createSettlement(root, settlement, expense, settlements, actor)
+      setSettlements((current) => [...current, saved])
+    }, 'Acerto registrado.')
+
+  const handleDeleteSettlement = async (settlement: Settlement) => {
+    const ok = await confirm({
+      title: 'Desfazer acerto',
+      message: 'O registro deste acerto será excluído. O valor voltará a constar como pendente.',
+      confirmLabel: 'Desfazer',
+      danger: true,
+    })
+    if (!ok) return false
+
+    return runFinance(async () => {
+      await deleteSettlement(root, settlement.id)
+      setSettlements((current) => current.filter((item) => item.id !== settlement.id))
+    }, 'Acerto desfeito.')
   }
 
   return {
@@ -155,6 +180,7 @@ export function useFinance({ root, month, toast, confirm, actor, memberUids = []
     payments,
     incomes,
     expenses,
+    settlements,
     savingFinance,
     handleSaveBill,
     handleDeleteBill,
@@ -164,9 +190,12 @@ export function useFinance({ root, month, toast, confirm, actor, memberUids = []
     handleDeleteIncome,
     handleSaveExpense,
     handleDeleteExpense,
+    handleCreateSettlement,
+    handleDeleteSettlement,
     setBills,
     setPayments,
     setIncomes,
     setExpenses,
+    setSettlements,
   }
 }

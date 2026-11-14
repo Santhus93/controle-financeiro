@@ -50,7 +50,7 @@ spaces/{spaceId}
 ├── name, ownerUid, createdAt
 ├── memberUids: [uid, ...]                     (para a consulta "meus espaços")
 ├── roles: { uid: 'owner' | 'editor' | 'viewer' }
-└── invoices/, bills/, billPayments/, incomes/, expenses/, categoryRules/, settings/budget
+└── invoices/, bills/, billPayments/, incomes/, expenses/, settlements/, categoryRules/, settings/budget
 ```
 
 Implementação:
@@ -137,3 +137,16 @@ e um editor poderia alterar `roles` e se promover a dono.
   Dono/Editor gravam livremente, e `createdBy` não está protegido contra omissão ou falsificação.
   A autoria é **informativa** nesta etapa; o endurecimento das regras virá depois que a V5.3 estiver
   publicada e validada (o PWA em cache ainda pode gravar sem autoria).
+
+
+## Acertos de gastos divididos (V6.0 — Lote 2)
+
+- Coleção `spaces/{spaceId}/settlements/{settlementId}` com `expenseId`, `fromUid`, `toUid`, `amount`,
+  e autoria opcional (`createdBy`, `createdAt`, `updatedAt`).
+- O acerto é **imutável**: não há atualização de documento; correções são feitas excluindo e recriando.
+- Limitações temporárias de segurança:
+  - O Leitor continua bloqueado de gravar pela regra genérica de subcoleções (`roleIn(spaceId) in ['owner', 'editor']`).
+  - Dono e Editor gravam livremente pela regra genérica.
+  - A validação de pertinência (`expenseId`, `fromUid ∈ shares`, `toUid == paidByUid`) e teto (`amount <= remaining`)
+    é garantida na aplicação pelo `settlementsService`.
+  - O endurecimento específico no `firestore.rules` entra no Lote 3.
