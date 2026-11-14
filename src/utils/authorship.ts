@@ -86,3 +86,20 @@ export function withAuthorship<T extends { id: string } & Authorship>(
     ...(createdAt ? { createdAt } : {}),
   }
 }
+
+/**
+ * Texto de apresentação da autoria: nome, senão e-mail, senão null.
+ * Nunca devolve string vazia.
+ */
+export function formatAuthorLabel(authorship?: Authorship | null): string | null {
+  const createdBy = authorship?.createdBy
+  if (!createdBy) return null
+
+  const name = typeof createdBy.name === 'string' ? createdBy.name.trim() : ''
+  if (name) return name
+
+  const email = typeof createdBy.email === 'string' ? createdBy.email.trim() : ''
+  if (email) return email
+
+  return null
+}

@@ -7,6 +7,7 @@ interface BillsTabProps {
   incomes: Income[]
   saving: boolean
   canEdit?: boolean
+  isShared?: boolean
   onSaveBill: (bill: NewBill) => Promise<boolean>
   onDeleteBill: (bill: Bill) => void
   onSaveIncome: (income: NewIncome) => Promise<boolean>
@@ -19,6 +20,7 @@ export function BillsTab({
   incomes,
   saving,
   canEdit = true,
+  isShared = false,
   onSaveBill,
   onDeleteBill,
   onSaveIncome,
@@ -31,6 +33,7 @@ export function BillsTab({
       incomes={incomes}
       saving={saving}
       canEdit={canEdit}
+      isShared={isShared}
       onSaveBill={onSaveBill}
       onDeleteBill={onDeleteBill}
       onSaveIncome={onSaveIncome}

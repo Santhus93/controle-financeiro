@@ -15,6 +15,7 @@ interface MonthTabProps {
   forecast: Forecast | null
   saving: boolean
   canEdit?: boolean
+  isShared?: boolean
   onPay: (bill: Bill, amount: number) => void
   onUnpay: (bill: Bill) => void
   onOpenInvoice: (invoiceId: string) => void
@@ -34,6 +35,7 @@ export function MonthTab({
   forecast,
   saving,
   canEdit = true,
+  isShared = false,
   onPay,
   onUnpay,
   onOpenInvoice,
@@ -53,6 +55,7 @@ export function MonthTab({
       forecast={forecast}
       saving={saving}
       canEdit={canEdit}
+      isShared={isShared}
       onPay={onPay}
       onUnpay={onUnpay}
       onOpenInvoice={onOpenInvoice}
@@ -63,6 +66,7 @@ export function MonthTab({
         expenses={expenses}
         saving={saving}
         canEdit={canEdit}
+        isShared={isShared}
         onSave={onSaveExpense}
         onDelete={onDeleteExpense}
       />

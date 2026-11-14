@@ -427,6 +427,7 @@ export default function Dashboard() {
             forecast={forecast}
             saving={savingFinance}
             canEdit={permissions.canEdit}
+            isShared={permissions.isShared}
             onPay={handlePayBill}
             onUnpay={handleUnpayBill}
             onOpenInvoice={openInvoice}
@@ -444,6 +445,7 @@ export default function Dashboard() {
             incomes={incomes}
             saving={savingFinance}
             canEdit={permissions.canEdit}
+            isShared={permissions.isShared}
             onSaveBill={handleSaveBill}
             onDeleteBill={(bill) => void handleDeleteBill(bill)}
             onSaveIncome={handleSaveIncome}
@@ -469,6 +471,7 @@ export default function Dashboard() {
             invoiceLoading={invoiceLoading}
             deleting={deleting}
             canEdit={permissions.canEdit}
+            isShared={permissions.isShared}
             rules={rules}
             budget={budget}
             savingBudget={savingBudget}

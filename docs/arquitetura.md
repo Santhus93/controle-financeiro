@@ -137,6 +137,17 @@ Gráficos (`CategoryChart`, `SpendingChart`, `HistoryView`, `CashflowHistory`) s
 - Helpers puros (`utils/authorship.ts`): normalização, leitura tolerante (Timestamp → Date),
   retorno otimista e preservação na lista local. `services/authorship.ts` só cuida do
   `serverTimestamp()`. Nenhum campo é gravado com `undefined`.
+- Exibição (Lote 3): `formatAuthorLabel` devolve nome, senão e-mail, senão `null`.
+  Com `isShared` e autoria presente:
+  - **“Lançado por …”** em gastos avulsos (`ExpensesPanel`), contas fixas e receitas
+    (`BillsManager` e `MonthOverview`, nos vencimentos e nas entradas do mês);
+  - **“Pago por …”** no vencimento da conta, quando o `BillPayment` do mês tem autoria
+    (não substitui o autor da conta);
+  - **“Importada por …”** uma única vez na área da fatura (`InvoiceTab`), a partir do
+    documento da fatura.
+  No Pessoal, em documentos antigos e nas transações individuais nada é exibido.
+  Classe única `.authorship-label` em `styles/month.css` (fonte pequena, cor muted,
+  `overflow-wrap: anywhere`).
 
 ## Regras de negócio
 

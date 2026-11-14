@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeActor, optimisticAuthorship, readAuthorship, withAuthorship } from './authorship'
+import type { Authorship } from '../types/Author'
+import {
+  formatAuthorLabel,
+  normalizeActor,
+  optimisticAuthorship,
+  readAuthorship,
+  withAuthorship,
+} from './authorship'
 
 /** Timestamp falso no formato do Firestore (apenas toDate). */
 function fakeTimestamp(iso: string) {
@@ -107,5 +114,37 @@ describe('withAuthorship', () => {
   it('mantém a autoria recém-criada quando não há item anterior', () => {
     const saved = { id: 'bill-1', createdBy: { uid: 'uid-1' }, createdAt: new Date() }
     expect(withAuthorship(saved, undefined)).toEqual(saved)
+  })
+})
+
+describe('formatAuthorLabel', () => {
+  it('devolve o nome quando preenchido', () => {
+    expect(formatAuthorLabel({ createdBy: { uid: 'uid-1', name: '  Ana  ' } })).toBe('Ana')
+  })
+
+  it('devolve o e-mail quando não há nome', () => {
+    expect(formatAuthorLabel({ createdBy: { uid: 'uid-1', email: 'ana@exemplo.com' } })).toBe(
+      'ana@exemplo.com',
+    )
+  })
+
+  it('usa o e-mail quando o nome está vazio', () => {
+    expect(
+      formatAuthorLabel({ createdBy: { uid: 'uid-1', name: '   ', email: ' ana@exemplo.com ' } }),
+    ).toBe('ana@exemplo.com')
+  })
+
+  it('devolve null para documento antigo sem autoria', () => {
+    expect(formatAuthorLabel(undefined)).toBeNull()
+    expect(formatAuthorLabel(null)).toBeNull()
+    expect(formatAuthorLabel({ createdAt: new Date() })).toBeNull()
+  })
+
+  it('devolve null para createdBy parcial ou inválido', () => {
+    expect(formatAuthorLabel({ createdBy: { uid: 'uid-1' } })).toBeNull()
+    expect(formatAuthorLabel({ createdBy: { uid: 'uid-1', name: '', email: '' } })).toBeNull()
+    expect(
+      formatAuthorLabel({ createdBy: 'quem' } as unknown as Authorship),
+    ).toBeNull()
   })
 })

@@ -406,6 +406,16 @@
   color: var(--muted);
 }
 
+/* Autoria de criação (V5.3): gastos, contas, vencimentos, receitas e faturas. */
+.authorship-label {
+  display: block;
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: 600;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
 .finance-amount {
   text-align: right;
   font-weight: 800;

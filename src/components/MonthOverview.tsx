@@ -16,6 +16,7 @@ import {
 import type { Bill, BillPayment, Expense, Income } from '../types/Finance'
 import type { InvoiceSummary } from '../types/Invoice'
 import { formatCurrency } from '../utils/currency'
+import { formatAuthorLabel } from '../utils/authorship'
 import { addMonths, formatDueDate, formatMonthLabel } from '../utils/invoiceReference'
 import {
   billsForMonth,
@@ -43,6 +44,7 @@ interface MonthOverviewProps {
   forecast: Forecast | null
   saving: boolean
   canEdit?: boolean
+  isShared?: boolean
   onPay: (bill: Bill, amount: number) => void
   onUnpay: (bill: Bill) => void
   onOpenInvoice: (invoiceId: string) => void
@@ -139,6 +141,7 @@ export function MonthOverview({
   forecast,
   saving,
   canEdit = true,
+  isShared = false,
   onPay,
   onUnpay,
   onOpenInvoice,
@@ -301,6 +304,12 @@ export function MonthOverview({
                     {bill.category} · vence {due}{' '}
                     <em className={`status-badge ${status}`}>{STATUS_LABEL[status]}</em>
                   </span>
+                  {isShared && formatAuthorLabel(bill) && (
+                    <small className="authorship-label">Lançado por {formatAuthorLabel(bill)}</small>
+                  )}
+                  {isShared && formatAuthorLabel(payment) && (
+                    <small className="authorship-label">Pago por {formatAuthorLabel(payment)}</small>
+                  )}
                 </div>
                 <div className="due-amount">
                   {formatCurrency(payment?.amount ?? bill.amount)}
@@ -359,6 +368,9 @@ export function MonthOverview({
                     Dia {formatDayMonth(dueDateIn(month, income.day))} ·{' '}
                     {income.recurring ? 'Todo mês' : 'Somente neste mês'}
                   </span>
+                  {isShared && formatAuthorLabel(income) && (
+                    <small className="authorship-label">Lançado por {formatAuthorLabel(income)}</small>
+                  )}
                 </div>
                 <div className="due-amount positive">{formatCurrency(income.amount)}</div>
               </div>

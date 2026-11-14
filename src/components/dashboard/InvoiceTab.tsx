@@ -13,6 +13,7 @@ import type { Budget } from '../../services/budgetService'
 import type { CategoryRule } from '../../services/categoryRulesService'
 import type { InvoiceSummary } from '../../types/Invoice'
 import type { Transaction, TransactionCategory } from '../../types/Transaction'
+import { formatAuthorLabel } from '../../utils/authorship'
 import { formatMonthLabel } from '../../utils/invoiceReference'
 
 // Componentes com gráficos (Recharts) só são baixados quando aparecem na tela.
@@ -34,6 +35,7 @@ interface InvoiceTabProps {
   invoiceLoading: boolean
   deleting: boolean
   canEdit?: boolean
+  isShared?: boolean
   rules: CategoryRule[]
   budget: Budget
   savingBudget: boolean
@@ -72,6 +74,7 @@ export function InvoiceTab({
   invoiceLoading,
   deleting,
   canEdit = true,
+  isShared = false,
   rules,
   budget,
   savingBudget,
@@ -94,6 +97,9 @@ export function InvoiceTab({
   onDeleteRule,
   onReapplyRules,
 }: InvoiceTabProps) {
+  const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId)
+  const importedBy = isShared ? formatAuthorLabel(selectedInvoice) : null
+
   return (
     <>
       <section className="cloud-toolbar">
@@ -104,6 +110,9 @@ export function InvoiceTab({
             <span>
               {invoices.length} fatura(s) · {rules.length} regra(s) de categoria
             </span>
+            {importedBy && (
+              <small className="authorship-label">Importada por {importedBy}</small>
+            )}
           </div>
         </div>
 

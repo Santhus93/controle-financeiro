@@ -3,6 +3,7 @@ import { Pencil, Plus, Trash2, Wallet, X } from 'lucide-react'
 import { PAYMENT_METHODS, type Expense, type NewExpense, type PaymentMethod } from '../types/Finance'
 import { TRANSACTION_CATEGORIES, type TransactionCategory } from '../types/Transaction'
 import { formatCurrency } from '../utils/currency'
+import { formatAuthorLabel } from '../utils/authorship'
 import { expensesForMonth, parseMoneyInput, toMoneyInput, todayIso } from '../utils/monthPlan'
 
 interface ExpensesPanelProps {
@@ -10,6 +11,7 @@ interface ExpensesPanelProps {
   expenses: Expense[]
   saving: boolean
   canEdit?: boolean
+  isShared?: boolean
   onSave: (expense: NewExpense) => Promise<boolean>
   onDelete: (expense: Expense) => void
 }
@@ -30,7 +32,7 @@ function formatShortDate(date: string): string {
   return `${day}/${month}`
 }
 
-export function ExpensesPanel({ month, expenses, saving, canEdit = true, onSave, onDelete }: ExpensesPanelProps) {
+export function ExpensesPanel({ month, expenses, saving, canEdit = true, isShared = false, onSave, onDelete }: ExpensesPanelProps) {
   const [form, setForm] = useState<ExpenseForm | null>(null)
   const [formError, setFormError] = useState('')
 
@@ -180,43 +182,47 @@ export function ExpensesPanel({ month, expenses, saving, canEdit = true, onSave,
       )}
 
       <div className="finance-list">
-        {monthExpenses.map((expense) => (
-          <div className="finance-row" key={expense.id}>
-            <div className="finance-day expense">
-              <small>{formatShortDate(expense.date).slice(3)}</small>
-              <strong>{formatShortDate(expense.date).slice(0, 2)}</strong>
-            </div>
-            <div className="finance-info">
-              <strong>{expense.description}</strong>
-              <span>{expense.category} · {expense.method}</span>
-            </div>
-            <div className="finance-amount">{formatCurrency(expense.amount)}</div>
-            {canEdit && (
-              <div className="finance-actions">
-                <button
-                  type="button"
-                  aria-label="Editar"
-                  onClick={() => {
-                    setFormError('')
-                    setForm({
-                      id: expense.id,
-                      description: expense.description,
-                      amount: toMoneyInput(expense.amount),
-                      date: expense.date,
-                      category: expense.category,
-                      method: expense.method,
-                    })
-                  }}
-                >
-                  <Pencil size={15} />
-                </button>
-                <button type="button" className="danger" aria-label="Excluir" disabled={saving} onClick={() => onDelete(expense)}>
-                  <Trash2 size={15} />
-                </button>
+        {monthExpenses.map((expense) => {
+          const author = isShared ? formatAuthorLabel(expense) : null
+          return (
+            <div className="finance-row" key={expense.id}>
+              <div className="finance-day expense">
+                <small>{formatShortDate(expense.date).slice(3)}</small>
+                <strong>{formatShortDate(expense.date).slice(0, 2)}</strong>
               </div>
-            )}
-          </div>
-        ))}
+              <div className="finance-info">
+                <strong>{expense.description}</strong>
+                <span>{expense.category} · {expense.method}</span>
+                {author && <small className="authorship-label">Lançado por {author}</small>}
+              </div>
+              <div className="finance-amount">{formatCurrency(expense.amount)}</div>
+              {canEdit && (
+                <div className="finance-actions">
+                  <button
+                    type="button"
+                    aria-label="Editar"
+                    onClick={() => {
+                      setFormError('')
+                      setForm({
+                        id: expense.id,
+                        description: expense.description,
+                        amount: toMoneyInput(expense.amount),
+                        date: expense.date,
+                        category: expense.category,
+                        method: expense.method,
+                      })
+                    }}
+                  >
+                    <Pencil size={15} />
+                  </button>
+                  <button type="button" className="danger" aria-label="Excluir" disabled={saving} onClick={() => onDelete(expense)}>
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              )}
+            </div>
+          )
+        })}
         {!monthExpenses.length && !form && (
           <div className="empty-mini finance-empty expenses-empty">
             <Wallet size={22} />

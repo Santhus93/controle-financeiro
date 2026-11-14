@@ -25,6 +25,8 @@ Leia este arquivo quando a tarefa envolver versões, dívidas técnicas ou plane
 | Refatoração | CSS em `src/styles` por funcionalidade; Dashboard dividido em hooks e abas (lotes 1–3) |
 | V5.0 | Cadastro, Google, recuperação de senha, verificação de e-mail |
 | V5.1 | Espaços (Pessoal x Espaços compartilhados, `spaces/{spaceId}`, seletor e renomeação) |
+| V5.2 | Convites por e-mail e gestão de membros |
+| V5.3 | Permissões refletidas na interface e autoria de criação nos espaços |
 
 Observação: a V5.0 entrou no commit `60130ae`, que ficou com a mensagem do lote 3.
 O `package.json` ainda está em 4.3.0.

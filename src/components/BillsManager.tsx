@@ -9,6 +9,7 @@ import {
   type NewIncome,
 } from '../types/Finance'
 import { formatCurrency } from '../utils/currency'
+import { formatAuthorLabel } from '../utils/authorship'
 import { formatMonthLabel } from '../utils/invoiceReference'
 import { parseMoneyInput, toMoneyInput } from '../utils/monthPlan'
 
@@ -18,6 +19,7 @@ interface BillsManagerProps {
   incomes: Income[]
   saving: boolean
   canEdit?: boolean
+  isShared?: boolean
   onSaveBill: (bill: NewBill) => Promise<boolean>
   onDeleteBill: (bill: Bill) => void
   onSaveIncome: (income: NewIncome) => Promise<boolean>
@@ -49,6 +51,7 @@ export function BillsManager({
   incomes,
   saving,
   canEdit = true,
+  isShared = false,
   onSaveBill,
   onDeleteBill,
   onSaveIncome,
@@ -274,6 +277,9 @@ export function BillsManager({
                 <span>
                   {bill.category} · {bill.variable ? 'variável' : 'fixo'} · desde {formatMonthLabel(bill.startMonth, 'short')}
                 </span>
+                {isShared && formatAuthorLabel(bill) && (
+                  <small className="authorship-label">Lançado por {formatAuthorLabel(bill)}</small>
+                )}
               </div>
               <div className="finance-amount">
                 {formatCurrency(bill.amount)}
@@ -439,6 +445,9 @@ export function BillsManager({
                     ? `todo mês desde ${formatMonthLabel(income.month, 'short')}`
                     : `só em ${formatMonthLabel(income.month)}`}
                 </span>
+                {isShared && formatAuthorLabel(income) && (
+                  <small className="authorship-label">Lançado por {formatAuthorLabel(income)}</small>
+                )}
               </div>
               <div className="finance-amount positive">{formatCurrency(income.amount)}</div>
               {canEdit && (
