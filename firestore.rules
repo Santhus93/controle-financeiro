@@ -74,13 +74,16 @@ service cloud.firestore {
       allow delete: if false;
 
       // Dados do espaço: membros leem; dono e editor gravam.
-      // Acertos têm regra própria logo abaixo; ficam fora desta permissão genérica
-      // porque regras de matches sobrepostos são combinadas por OR.
+      // Acertos e a Central A Receber têm regra própria logo abaixo; ficam fora
+      // desta permissão genérica porque regras de matches sobrepostos são
+      // combinadas por OR.
       match /{sub}/{document=**} {
         allow read: if signedIn() && roleIn(spaceId) != null;
         allow write: if signedIn()
           && roleIn(spaceId) in ['owner', 'editor']
-          && sub != 'settlements';
+          && sub != 'settlements'
+          && sub != 'receivables'
+          && sub != 'receivablePayments';
       }
 
       // ---------- Acertos de gastos divididos (V6.0 — Lote 3) ----------
@@ -129,6 +132,112 @@ service cloud.firestore {
           && request.resource.data.get('updatedAt', request.time) == request.time;
 
         // Imutável: correção é excluir e registrar de novo.
+        allow update: if false;
+
+        allow delete: if signedIn() && roleIn(spaceId) in ['owner', 'editor'];
+      }
+
+      // ---------- Central A Receber (V6.1 — Lote 3) ----------
+      // Formato gravado por receivablesService:
+      //   manual:          { description, contact, amount, dueDate?, notes?,
+      //                      source: { type: 'manual' }, ...autoria }
+      //   card_transaction:{ ...mesmo base, source:
+      //                      { type, invoiceId, transactionId } }
+      // Autoria (createdBy/createdAt) só existe na criação e nunca é reescrita.
+      // Receivable não grava updatedAt.
+      function receivableExists(receivableId) {
+        return exists(/databases/$(database)/documents/spaces/$(spaceId)/receivables/$(receivableId));
+      }
+
+      match /receivables/{receivableId} {
+        allow read: if signedIn() && roleIn(spaceId) != null;
+
+        allow create: if signedIn()
+          && roleIn(spaceId) in ['owner', 'editor']
+          && request.resource.data.keys().hasOnly(
+               ['description', 'contact', 'amount', 'dueDate', 'notes', 'source',
+                'createdBy', 'createdAt'])
+          && request.resource.data.keys().hasAll(
+               ['description', 'contact', 'amount', 'source', 'createdBy', 'createdAt'])
+          && request.resource.data.description is string
+          && request.resource.data.description.size() > 0
+          && request.resource.data.contact.keys().hasOnly(['name', 'email', 'phone'])
+          && request.resource.data.contact.keys().hasAll(['name'])
+          && request.resource.data.contact.name is string
+          && request.resource.data.contact.name.size() > 0
+          && request.resource.data.contact.get('email', '') is string
+          && request.resource.data.contact.get('phone', '') is string
+          && request.resource.data.amount is number
+          && request.resource.data.amount > 0
+          && request.resource.data.get('dueDate', '') is string
+          && request.resource.data.get('notes', '') is string
+          && request.resource.data.source.keys().hasOnly(['type', 'invoiceId', 'transactionId'])
+          && (
+               (request.resource.data.source.type == 'manual'
+                 && request.resource.data.source.keys().hasOnly(['type']))
+               || (request.resource.data.source.type == 'card_transaction'
+                 && request.resource.data.source.keys().hasAll(['invoiceId', 'transactionId'])
+                 && request.resource.data.source.invoiceId is string
+                 && request.resource.data.source.invoiceId.size() > 0
+                 && request.resource.data.source.transactionId is string
+                 && request.resource.data.source.transactionId.size() > 0)
+             )
+          && request.resource.data.createdBy.keys().hasOnly(['uid', 'name', 'email'])
+          && request.resource.data.createdBy.uid == request.auth.uid
+          && request.resource.data.createdBy.get('name', '') is string
+          && request.resource.data.createdBy.get('email', '') is string
+          && request.resource.data.createdAt == request.time;
+
+        // Edição limitada ao que saveReceivable reenvia (merge). `source` e a
+        // autoria não podem ser tocados; o serviço não grava `updatedAt`.
+        allow update: if signedIn()
+          && roleIn(spaceId) in ['owner', 'editor']
+          && changed().hasOnly(['description', 'contact', 'amount', 'dueDate', 'notes'])
+          && request.resource.data.description is string
+          && request.resource.data.description.size() > 0
+          && request.resource.data.contact.keys().hasOnly(['name', 'email', 'phone'])
+          && request.resource.data.contact.keys().hasAll(['name'])
+          && request.resource.data.contact.name is string
+          && request.resource.data.contact.name.size() > 0
+          && request.resource.data.contact.get('email', '') is string
+          && request.resource.data.contact.get('phone', '') is string
+          && request.resource.data.amount is number
+          && request.resource.data.amount > 0
+          && request.resource.data.get('dueDate', '') is string
+          && request.resource.data.get('notes', '') is string;
+
+        // Excluir não valida recebimentos: essa trava continua no serviço.
+        allow delete: if signedIn() && roleIn(spaceId) in ['owner', 'editor'];
+      }
+
+      // Formato gravado por receivablesService.createReceivablePayment:
+      // { receivableId, amount, paymentDate, notes?, createdBy, createdAt }
+      // ReceivablePayment não grava updatedAt.
+      // Imutável: correção é excluir (desfazer) e registrar de novo.
+      match /receivablePayments/{paymentId} {
+        allow read: if signedIn() && roleIn(spaceId) != null;
+
+        allow create: if signedIn()
+          && roleIn(spaceId) in ['owner', 'editor']
+          && request.resource.data.keys().hasOnly(
+               ['receivableId', 'amount', 'paymentDate', 'notes',
+                'createdBy', 'createdAt'])
+          && request.resource.data.keys().hasAll(
+               ['receivableId', 'amount', 'paymentDate', 'createdBy', 'createdAt'])
+          && request.resource.data.receivableId is string
+          && request.resource.data.receivableId.size() > 0
+          && request.resource.data.amount is number
+          && request.resource.data.amount > 0
+          && request.resource.data.paymentDate is string
+          && request.resource.data.paymentDate.size() > 0
+          && request.resource.data.get('notes', '') is string
+          && receivableExists(request.resource.data.receivableId)
+          && request.resource.data.createdBy.keys().hasOnly(['uid', 'name', 'email'])
+          && request.resource.data.createdBy.uid == request.auth.uid
+          && request.resource.data.createdBy.get('name', '') is string
+          && request.resource.data.createdBy.get('email', '') is string
+          && request.resource.data.createdAt == request.time;
+
         allow update: if false;
 
         allow delete: if signedIn() && roleIn(spaceId) in ['owner', 'editor'];

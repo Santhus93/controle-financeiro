@@ -28,6 +28,7 @@ Leia este arquivo quando a tarefa envolver versões, dívidas técnicas ou plane
 | V5.2 | Convites por e-mail e gestão de membros |
 | V5.3 | Permissões refletidas na interface e autoria de criação nos espaços |
 | V6.0 | Divisão de gastos avulsos, acertos entre membros (A receber / A pagar), status Pendente / Parcial / Pago, trava do gasto após o primeiro acerto e regras específicas de `settlements` |
+| V6.1 | Central A Receber (cobranças manuais e a partir do lançamento do cartão, recebimentos parciais) e regras específicas de `receivables`/`receivablePayments` |
 
 Observação: a V5.0 entrou no commit `60130ae`, que ficou com a mensagem do lote 3.
 O `package.json` ainda está em 4.3.0.
@@ -46,8 +47,8 @@ O `package.json` ainda está em 4.3.0.
 - **Regras de categoria antigas** gravadas com acento quebrado (chave com "cra dito"). Excluir pelo painel de regras.
 - **Google no PWA do iPhone** pode falhar no redirecionamento.
 - **Versão** no `package.json` não acompanha as entregas desde a V4.3.
-- **Regras do Firestore da V6.0** ainda não foram publicadas; `firestore.rules` é aplicado manualmente
-  no console e não é validado pelo build.
+- **Regras do Firestore da V6.1** (incluindo as da V6.0) ainda não foram publicadas; `firestore.rules`
+  é aplicado manualmente no console e não é validado pelo build.
 
 ## Próximos passos
 

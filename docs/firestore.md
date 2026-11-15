@@ -175,20 +175,20 @@ e um editor poderia alterar `roles` e se promover a dono.
   transacional, o que fica fora da V6.0.
 - Leitor: lê, mas não cria nem exclui.
 
-## Central A Receber (V6.1 — Lotes 1 e 2)
+## Central A Receber (V6.1 — Lotes 1 a 3)
 
 - Coleções em **ambos os escopos**, com o mesmo `root` recebido pelos serviços:
   - `users/{uid}/receivables/{receivableId}` e `users/{uid}/receivablePayments/{paymentId}`;
   - `spaces/{spaceId}/receivables/{receivableId}` e `spaces/{spaceId}/receivablePayments/{paymentId}`.
 - `receivables` guarda `description`, `contact: { name, email?, phone? }`, `amount`, `dueDate?`,
-  `notes?`, `source` e, em Espaços, a autoria de criação. Devido, recebido, pendente e status
-  **nunca são gravados** — são derivados dos pagamentos.
+  `notes?`, `source` e, em Espaços, a autoria de criação (`createdBy`, `createdAt`). Devido,
+  recebido, pendente e status **nunca são gravados** — são derivados dos pagamentos.
 - `source` tem dois formatos:
   - `{ type: 'manual' }` para cobranças criadas no painel;
   - `{ type: 'card_transaction', invoiceId, transactionId }` para cobranças criadas a partir de um
     lançamento do cartão. `invoiceId` e `transactionId` são obrigatórios; a Transaction **não**
     recebe campos novos e continua intacta.
-- A unicidade “uma cobrança por transação” é **hoje garantida pelo serviço**, que compara
+- A unicidade “uma cobrança por transação” é garantida pelo **serviço**, que compara
   `source.type === 'card_transaction'` + `invoiceId + transactionId` antes de criar. Uma transação
   origina no máximo uma cobrança, mesmo que o valor cobrado seja parcial.
 - `receivablePayments` guarda `receivableId`, `amount`, `paymentDate` e `notes?`. É **imutável**:
@@ -197,13 +197,43 @@ e um editor poderia alterar `roles` e se promover a dono.
   cobrança, a fatura, o Meu mês nem a sobra.
 - Leitura tolerante a documentos antigos/inválidos, com Timestamp → Date e autoria opcional.
 
-### Limitações temporárias das regras (Lotes 1 e 2)
+### Regras específicas (Lote 3)
 
-- `firestore.rules` **não foi alterado** nestes lotes.
-- No Pessoal, `users/{uid}/...` continua protegido pela regra existente (só o próprio uid).
-- Nos Espaços, as duas coleções usam a permissão genérica de subcoleções: Dono/Editor escrevem,
-  Leitor apenas lê.
-- Estrutura específica, campos permitidos, autoria, formato de `source.card_transaction` e
-  imutabilidade dos pagamentos dependem hoje do serviço; um Dono/Editor com acesso direto ao
-  Firestore poderia gravar formato diferente ou duplicar uma cobrança para a mesma transação.
-  Regras próprias para `receivables`/`receivablePayments` entram no Lote 3.
+- `receivables` e `receivablePayments` foram **excluídos da permissão genérica de subcoleções**
+  (`sub != 'receivables' && sub != 'receivablePayments'`), porque matches sobrepostos são
+  combinados por OR. `settlements` continua fora da regra genérica, com a regra da V6.0 intacta.
+- `match /spaces/{spaceId}/receivables/{receivableId}`:
+  - leitura para qualquer membro (`roleIn(spaceId) != null`); escrita apenas Dono/Editor;
+  - criação aceita somente `description`, `contact`, `amount`, `dueDate`, `notes`, `source`,
+    `createdBy`, `createdAt`. Receivable não grava `updatedAt` (campo não aceito na criação);
+  - `description` e `contact.name` são strings não vazias; `contact` aceita apenas
+    `name`/`email`/`phone`, com e-mail e telefone opcionais; `amount` é número > 0;
+  - `dueDate` e `notes` são strings opcionais (a regra usa `.get(campo, '') is string`);
+  - `source.type` só pode ser `manual` ou `card_transaction`. `manual` não leva
+    `invoiceId`/`transactionId`; `card_transaction` exige os dois como strings não vazias;
+  - atualização limitada aos campos que `saveReceivable` reenvia no merge
+    (`description`, `contact`, `amount`, `dueDate`, `notes`). `source`, `createdBy` e `createdAt`
+    ficam **imutáveis**; exclusão para Dono/Editor, negada ao Leitor;
+  - Receivable não grava `updatedAt`.
+- `match /spaces/{spaceId}/receivablePayments/{paymentId}`:
+  - leitura para membros; criação e exclusão apenas Dono/Editor; `update` sempre `false`;
+  - criação aceita somente `receivableId`, `amount`, `paymentDate`, `notes`, `createdBy`,
+    `createdAt`. ReceivablePayment não grava `updatedAt` (campo não aceito na criação);
+  - `receivableId` e `paymentDate` são strings não vazias; `amount` é número > 0; `notes` é
+    opcional;
+  - `receivableExists(receivableId)` exige que a cobrança exista **no mesmo espaço**;
+  - autoria: `createdBy.uid == request.auth.uid`, `createdAt == request.time`,
+    `createdBy` limitado a `uid`/`name`/`email`.
+- Pessoal: `users/{uid}/receivables` e `users/{uid}/receivablePayments` continuam protegidos pelo
+  ownership de `users/{uid}`; não há regra específica para essas coleções.
+
+### Limitações que continuam no serviço (Lote 3)
+
+- As regras **não** somam pagamentos nem comparam `amount <= pendente`: o teto do recebimento
+  continua em `createReceivablePayment`.
+- As regras **não** impedem duas cobranças para o mesmo `invoiceId + transactionId` (exigiria
+  índice determinístico por par). A unicidade continua em `createReceivableFromTransaction`.
+- As regras **não** verificam se existem `receivablePayments` antes de excluir uma cobrança; a trava
+  continua em `deleteReceivable` (“Desfaça os recebimentos antes de excluir.”).
+- A regra **não** valida o formato AAAA-MM-DD de `dueDate`/`paymentDate` nem o tamanho mínimo de
+  nomes; isso permanece no serviço.

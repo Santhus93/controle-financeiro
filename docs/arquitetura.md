@@ -201,7 +201,7 @@ Gráficos (`CategoryChart`, `SpendingChart`, `HistoryView`, `CashflowHistory`) s
   (`createdBy.uid`, `createdAt`, `updatedAt`). Teto acumulado e presença em `split.shares` continuam
   no serviço.
 
-## Central A Receber (V6.1 — Lotes 1 e 2)
+## Central A Receber (V6.1 — Lotes 1 a 3)
 
 - `types/Receivable.ts`: `Receivable` (`contact: { name, email?, phone? }`, `amount`, `dueDate?`,
   `notes?`, `source` e `...Authorship`) e `ReceivablePayment` (`receivableId`, `amount`,
@@ -234,6 +234,12 @@ Gráficos (`CategoryChart`, `SpendingChart`, `HistoryView`, `CashflowHistory`) s
   transação. Não entram em `FinanceData`, `computeMonthSummary`, `computeForecast`, Histórico,
   orçamento ou sobra, e não alteram o cartão. Recebimento não cria `Income`. “Ver cobrança”
   navega para o Meu mês e destaca o cartão correspondente em `ReceivablesPanel`.
+- **Regras no Firestore (Lote 3):** em `spaces/{spaceId}`, `receivables` e `receivablePayments`
+  saíram da permissão genérica de subcoleções e ganharam matches próprios: membros leem,
+  Dono/Editor escrevem, `source`/autoria são imutáveis na edição e o pagamento não aceita update.
+  O Pessoal continua protegido pelo ownership de `users/{uid}`. As invariantes de negócio (teto do
+  recebimento, uma cobrança por `invoiceId + transactionId`, exclusão só sem recebimentos) seguem
+  no serviço; ver `docs/firestore.md`.
 
 ## Segurança em camadas (V6.0 — Lote 3)
 
@@ -241,7 +247,7 @@ Gráficos (`CategoryChart`, `SpendingChart`, `HistoryView`, `CashflowHistory`) s
 |---|---|---|
 | Interface (`scopePermissions`, `canEdit`, painéis) | esconde controles de escrita do Leitor e aplica a trava do gasto | nada contra um cliente alterado |
 | Serviço (`financeService`, `settlementsService`, `utils/split.ts`) | divisão válida, soma das partes, participante na divisão, teto do acerto, trava de Expense | nada contra escrita direta no Firestore |
-| Firestore Rules | Pessoal isolado por uid; papéis dos espaços; `settlements` só Dono/Editor, formato e autoria validados, update negado | somar coleção, presença de `fromUid` em `split.shares`, consistência transacional |
+| Firestore Rules | Pessoal isolado por uid; papéis dos espaços; `settlements` só Dono/Editor, formato e autoria validados, update negado; `receivables`/`receivablePayments` só Dono/Editor, formato de `source` e autoria validados, `source`/autoria imutáveis e pagamento sem update | somar coleção, presença de `fromUid` em `split.shares`, teto do recebimento, unicidade `invoiceId + transactionId`, exclusão com recebimentos, consistência transacional |
 
 ## Regras de negócio
 
