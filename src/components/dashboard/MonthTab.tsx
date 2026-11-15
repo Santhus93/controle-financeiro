@@ -1,10 +1,17 @@
 import { ExpensesPanel } from '../ExpensesPanel'
 import { MonthOverview } from '../MonthOverview'
+import { ReceivablesPanel } from '../ReceivablesPanel'
 import { SettlementsPanel } from '../SettlementsPanel'
 import type { Bill, BillPayment, Expense, Income, NewExpense } from '../../types/Finance'
 import type { InvoiceSummary } from '../../types/Invoice'
 import type { SpaceMember } from '../../types/Space'
 import type { NewSettlement, Settlement } from '../../types/Settlement'
+import type {
+  NewReceivable,
+  NewReceivablePayment,
+  Receivable,
+  ReceivablePayment,
+} from '../../types/Receivable'
 import type { Forecast } from '../../utils/monthPlan'
 
 interface MonthTabProps {
@@ -16,6 +23,8 @@ interface MonthTabProps {
   incomes: Income[]
   expenses: Expense[]
   settlements?: Settlement[]
+  receivables?: Receivable[]
+  receivablePayments?: ReceivablePayment[]
   forecast: Forecast | null
   saving: boolean
   canEdit?: boolean
@@ -24,6 +33,13 @@ interface MonthTabProps {
   currentUid?: string
   onCreateSettlement?: (expense: Expense, settlement: NewSettlement) => Promise<boolean>
   onDeleteSettlement?: (settlement: Settlement) => Promise<boolean>
+  onSaveReceivable?: (receivable: NewReceivable) => Promise<boolean>
+  onDeleteReceivable?: (receivable: Receivable) => Promise<boolean>
+  onCreateReceivablePayment?: (
+    receivable: Receivable,
+    payment: NewReceivablePayment,
+  ) => Promise<boolean>
+  onDeleteReceivablePayment?: (payment: ReceivablePayment) => Promise<boolean>
   onPay: (bill: Bill, amount: number) => void
   onUnpay: (bill: Bill) => void
   onOpenInvoice: (invoiceId: string) => void
@@ -41,6 +57,8 @@ export function MonthTab({
   incomes,
   expenses,
   settlements = [],
+  receivables = [],
+  receivablePayments = [],
   forecast,
   saving,
   canEdit = true,
@@ -49,6 +67,10 @@ export function MonthTab({
   currentUid = '',
   onCreateSettlement,
   onDeleteSettlement,
+  onSaveReceivable,
+  onDeleteReceivable,
+  onCreateReceivablePayment,
+  onDeleteReceivablePayment,
   onPay,
   onUnpay,
   onOpenInvoice,
@@ -98,6 +120,21 @@ export function MonthTab({
           onDeleteSettlement={onDeleteSettlement}
         />
       )}
+      {onSaveReceivable &&
+        onDeleteReceivable &&
+        onCreateReceivablePayment &&
+        onDeleteReceivablePayment && (
+          <ReceivablesPanel
+            receivables={receivables}
+            payments={receivablePayments}
+            saving={saving}
+            canEdit={canEdit}
+            onSave={onSaveReceivable}
+            onDelete={onDeleteReceivable}
+            onCreatePayment={onCreateReceivablePayment}
+            onDeletePayment={onDeleteReceivablePayment}
+          />
+        )}
     </MonthOverview>
   )
 }

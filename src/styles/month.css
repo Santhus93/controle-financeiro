@@ -1137,3 +1137,344 @@ html[data-theme="dark"] .settlement-amounts {
     justify-content: flex-end;
   }
 }
+
+/* A receber: cobranças manuais (não entram nas receitas do mês) */
+
+.receivables-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.receivables-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  min-width: 0;
+}
+
+.receivables-stat span {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted);
+}
+
+.receivables-stat strong {
+  font: 800 17px Manrope;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.receivables-stat.due strong {
+  color: var(--purple);
+}
+
+.receivables-stat.received strong {
+  color: var(--green);
+}
+
+.receivable-history {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--line);
+}
+
+.receivable-history-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+}
+
+.receivable-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.receivable-history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.receivable-history-item span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.receivable-undo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.receivable-undo-btn:hover {
+  background: rgba(180, 35, 24, 0.08);
+  color: var(--red);
+  border-color: rgba(180, 35, 24, 0.2);
+}
+
+.receivable-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(109, 40, 217, 0.04);
+  border: 1px solid rgba(109, 40, 217, 0.15);
+}
+
+.receivable-form.payment {
+  background: rgba(20, 128, 74, 0.05);
+  border-color: rgba(20, 128, 74, 0.2);
+}
+
+.receivable-form-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.receivable-form-head strong {
+  font: 800 13px Manrope;
+  color: var(--ink);
+}
+
+.receivable-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 10px;
+}
+
+.receivable-form-grid .budget-field.wide {
+  grid-column: 1 / -1;
+}
+
+.receivables-empty {
+  overflow-wrap: anywhere;
+}
+
+.receivables-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.receivable-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.receivable-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.receivable-person {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.receivable-person strong {
+  font-size: 14px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.receivable-person span {
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.receivable-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  flex-shrink: 0;
+}
+
+.receivable-status-badge.paid {
+  background: rgba(20, 128, 74, 0.12);
+  color: var(--green);
+}
+
+.receivable-status-badge.partial {
+  background: rgba(109, 40, 217, 0.12);
+  color: var(--purple);
+}
+
+.receivable-status-badge.pending {
+  background: rgba(234, 179, 8, 0.14);
+  color: #b45309;
+}
+
+.receivable-status-badge.overdue {
+  background: rgba(180, 35, 24, 0.12);
+  color: var(--red);
+}
+
+html[data-theme="dark"] .receivable-status-badge.pending {
+  color: #fde047;
+}
+
+html[data-theme="dark"] .receivable-status-badge.overdue {
+  color: #fca5a5;
+}
+
+.receivable-amounts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+html[data-theme="dark"] .receivable-amounts {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.receivable-amounts>div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.receivable-amounts span {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted);
+}
+
+.receivable-amounts strong {
+  font-size: 13px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.receivable-amounts strong.positive {
+  color: var(--green);
+}
+
+.receivable-amounts strong.highlight {
+  color: var(--purple);
+}
+
+.receivable-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.receivable-meta span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.receivable-meta .receivable-notes {
+  flex-basis: 100%;
+}
+
+.receivable-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.receivable-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.receivable-action-btn:hover {
+  background: rgba(109, 40, 217, 0.06);
+  color: var(--purple);
+}
+
+.receivable-action-btn.danger:hover {
+  background: rgba(180, 35, 24, 0.08);
+  color: var(--red);
+  border-color: rgba(180, 35, 24, 0.2);
+}
+
+.receivable-action-btn:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.receivable-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+@media (max-width: 420px) {
+  .receivables-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .receivable-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .receivable-amounts {
+    grid-template-columns: 1fr;
+  }
+
+  .receivable-row-actions {
+    flex-wrap: wrap;
+  }
+}

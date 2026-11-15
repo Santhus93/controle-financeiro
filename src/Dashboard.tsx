@@ -25,6 +25,7 @@ import {
   rulesToMap,
 } from './services/categoryRulesService'
 import { listBillPayments, listBills, listExpenses, listIncomes } from './services/financeService'
+import { listReceivables, listReceivablePayments } from './services/receivablesService'
 import { listSettlements } from './services/settlementsService'
 import { listInvoices, loadInvoice } from './services/firestoreService'
 import { listMySpaces } from './services/spacesService'
@@ -177,6 +178,8 @@ export default function Dashboard() {
     incomes,
     expenses,
     settlements,
+    receivables,
+    receivablePayments,
     savingFinance,
     handleCreateSettlement,
     handleDeleteSettlement,
@@ -189,10 +192,16 @@ export default function Dashboard() {
     handleDeleteIncome,
     handleSaveExpense,
     handleDeleteExpense,
+    handleSaveReceivable,
+    handleDeleteReceivable,
+    handleCreateReceivablePayment,
+    handleDeleteReceivablePayment,
     setBills,
     setPayments,
     setIncomes,
     setExpenses,
+    setReceivables,
+    setReceivablePayments,
   } = useFinance({ root, month, toast, confirm, actor, memberUids })
 
   const { rules, savingRule, setSavingRule, ruleMap, setRules, saveRule, deleteRule } = useRules({
@@ -325,6 +334,8 @@ export default function Dashboard() {
       setIncomes([])
       setExpenses([])
       setSettlements([])
+      setReceivables([])
+      setReceivablePayments([])
       setInvoices([])
       setSelectedInvoiceId('')
       setFileName('')
@@ -344,16 +355,27 @@ export default function Dashboard() {
           }
         }
 
-        const [foundBudget, foundBills, foundPayments, foundIncomes, foundExpenses, foundInvoices, foundSettlements] =
-          await Promise.all([
-            loadBudget(root),
-            listBills(root),
-            listBillPayments(root),
-            listIncomes(root),
-            listExpenses(root),
-            listInvoices(root),
-            activeScope.kind === 'space' ? listSettlements(root) : Promise.resolve([]),
-          ])
+        const [
+          foundBudget,
+          foundBills,
+          foundPayments,
+          foundIncomes,
+          foundExpenses,
+          foundInvoices,
+          foundSettlements,
+          foundReceivables,
+          foundReceivablePayments,
+        ] = await Promise.all([
+          loadBudget(root),
+          listBills(root),
+          listBillPayments(root),
+          listIncomes(root),
+          listExpenses(root),
+          listInvoices(root),
+          activeScope.kind === 'space' ? listSettlements(root) : Promise.resolve([]),
+          listReceivables(root),
+          listReceivablePayments(root),
+        ])
         if (cancelled) return
 
         setRules(foundRules)
@@ -363,6 +385,8 @@ export default function Dashboard() {
         setIncomes(foundIncomes)
         setExpenses(foundExpenses)
         setSettlements(foundSettlements)
+        setReceivables(foundReceivables)
+        setReceivablePayments(foundReceivablePayments)
         setInvoices(foundInvoices)
 
         if (foundInvoices.length > 0) {
@@ -471,6 +495,12 @@ export default function Dashboard() {
             settlements={settlements}
             onCreateSettlement={handleCreateSettlement}
             onDeleteSettlement={handleDeleteSettlement}
+            receivables={receivables}
+            receivablePayments={receivablePayments}
+            onSaveReceivable={handleSaveReceivable}
+            onDeleteReceivable={handleDeleteReceivable}
+            onCreateReceivablePayment={handleCreateReceivablePayment}
+            onDeleteReceivablePayment={handleDeleteReceivablePayment}
             onPay={handlePayBill}
             onUnpay={handleUnpayBill}
             onOpenInvoice={openInvoice}

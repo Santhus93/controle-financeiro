@@ -50,7 +50,8 @@ spaces/{spaceId}
 ├── name, ownerUid, createdAt
 ├── memberUids: [uid, ...]                     (para a consulta "meus espaços")
 ├── roles: { uid: 'owner' | 'editor' | 'viewer' }
-└── invoices/, bills/, billPayments/, incomes/, expenses/, settlements/, categoryRules/, settings/budget
+└── invoices/, bills/, billPayments/, incomes/, expenses/, settlements/,
+    receivables/, receivablePayments/, categoryRules/, settings/budget
 ```
 
 Implementação:
@@ -173,3 +174,27 @@ e um editor poderia alterar `roles` e se promover a dono.
   Endurecer isso exigiria um acumulador determinístico por `expenseId + fromUid` ou saldo agregado
   transacional, o que fica fora da V6.0.
 - Leitor: lê, mas não cria nem exclui.
+
+## Central A Receber (V6.1 — Lote 1)
+
+- Coleções em **ambos os escopos**, com o mesmo `root` recebido pelos serviços:
+  - `users/{uid}/receivables/{receivableId}` e `users/{uid}/receivablePayments/{paymentId}`;
+  - `spaces/{spaceId}/receivables/{receivableId}` e `spaces/{spaceId}/receivablePayments/{paymentId}`.
+- `receivables` guarda `description`, `contact: { name, email?, phone? }`, `amount`, `dueDate?`,
+  `notes?`, `source: { type: 'manual' }` e, em Espaços, a autoria de criação. Devido, recebido,
+  pendente e status **nunca são gravados** — são derivados dos pagamentos.
+- `receivablePayments` guarda `receivableId`, `amount`, `paymentDate` e `notes?`. É **imutável**:
+  não existe edição; corrigir é excluir e registrar de novo.
+- O recebimento é gravado apenas na coleção de pagamentos: não cria `Income` e não altera a
+  cobrança, a fatura, o Meu mês nem a sobra.
+- Leitura tolerante a documentos antigos/inválidos, com Timestamp → Date e autoria opcional.
+
+### Limitações temporárias das regras (Lote 1)
+
+- `firestore.rules` **não foi alterado** neste lote.
+- No Pessoal, `users/{uid}/...` continua protegido pela regra existente (só o próprio uid).
+- Nos Espaços, as duas coleções usam a permissão genérica de subcoleções: Dono/Editor escrevem,
+  Leitor apenas lê.
+- Estrutura específica, campos permitidos, autoria e imutabilidade dos pagamentos dependem hoje do
+  serviço; um Dono/Editor com acesso direto ao Firestore poderia gravar formato diferente.
+  Regras próprias para `receivables`/`receivablePayments` entram no Lote 3.

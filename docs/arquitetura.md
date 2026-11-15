@@ -51,7 +51,8 @@ src/
 ├── hooks/                   recebem uid/toast/confirm por parâmetro (sem useUi dentro)
 │   ├── useTransactionFilters.ts  busca, filtros, categorias, resetFilters
 │   ├── useBudget.ts              orçamento
-│   ├── useFinance.ts             contas fixas, pagamentos, receitas, avulsos (8 handlers)
+│   ├── useFinance.ts             contas fixas, pagamentos, receitas, avulsos,
+│   │                             acertos e cobranças a receber
 │   ├── useInvoiceHistory.ts      allInvoices (invalidação e carga sob demanda)
 │   ├── useRules.ts               regras de categoria
 │   ├── useInvoices.ts            faturas, importação, seleção, exclusão
@@ -66,7 +67,8 @@ src/
 │   ├── Login.tsx            Entrar | Criar conta | Esqueci minha senha + Google
 │   ├── MonthOverview.tsx    Meu mês: resumo, previsão, vencimentos, receitas;
 │   │                        exibe o ExpensesPanel via children
-│   ├── ExpensesPanel.tsx, SplitEditor.tsx (divisão de gastos), BillsManager.tsx,
+│   ├── ExpensesPanel.tsx, SplitEditor.tsx (divisão de gastos), SettlementsPanel.tsx,
+│   │                        ReceivablesPanel.tsx, BillsManager.tsx,
 │   │                        CashflowHistory.tsx, HistoryView.tsx
 │   ├── FileUpload.tsx, SummaryCards.tsx, BudgetPanel.tsx, UncategorizedPanel.tsx
 │   ├── CategoryChart.tsx, SpendingChart.tsx, TopMerchants.tsx, Installments.tsx
@@ -78,6 +80,7 @@ src/
 │   ├── importService.ts         escolhe o leitor pela extensão; conferência com o saldo
 │   ├── ofxParser.ts, csvParser.ts, transactionClassifier.ts, categoryEngine.ts
 │   ├── firestoreService.ts, categoryRulesService.ts, budgetService.ts, financeService.ts
+│   ├── settlementsService.ts, receivablesService.ts
 │   ├── authorship.ts        serverTimestamp() para createdBy/createdAt
 │
 ├── styles/
@@ -85,10 +88,11 @@ src/
 │   ├── invoices.css, budget.css, month.css, history.css
 │   ├── responsive.css (media queries por breakpoint), theme-dark.css (por último)
 │
-├── types/      Transaction.ts, Invoice.ts, Finance.ts, Author.ts, Space.ts
+├── types/      Transaction.ts, Invoice.ts, Finance.ts, Author.ts, Space.ts, Receivable.ts
 └── utils/      currency.ts, dates.ts, invoiceReference.ts, monthPlan.ts,
                 scopePermissions.ts (+ test), authorship.ts (+ test),
-                split.ts (+ test), errors.ts (+ test), authErrors.ts (+ test)
+                split.ts (+ test), receivables.ts (+ test), errors.ts (+ test),
+                authErrors.ts (+ test)
 ```
 
 Gráficos (`CategoryChart`, `SpendingChart`, `HistoryView`, `CashflowHistory`) são carregados com `lazy()`.
@@ -197,6 +201,29 @@ Gráficos (`CategoryChart`, `SpendingChart`, `HistoryView`, `CashflowHistory`) s
   (`createdBy.uid`, `createdAt`, `updatedAt`). Teto acumulado e presença em `split.shares` continuam
   no serviço.
 
+## Central A Receber (V6.1 — Lote 1)
+
+- `types/Receivable.ts`: `Receivable` (`contact: { name, email?, phone? }`, `amount`, `dueDate?`,
+  `notes?`, `source` e `...Authorship`) e `ReceivablePayment` (`receivableId`, `amount`,
+  `paymentDate`, `notes?` e `...Authorship`). O contato é um **snapshot**, não um usuário e não
+  existe coleção de contatos.
+- `source` neste lote é sempre `{ type: 'manual' }`; `card_transaction` fica reservado ao Lote 2.
+  A origem não muda depois da criação e a edição preserva o valor gravado.
+- **Nada é persistido como saldo:** `utils/receivables.ts` deriva `due`, `received`, `pending` e
+  `status` em centavos. `pending = max(amount − recebido, 0)`; o status segue a prioridade
+  pago > atrasado > parcial > pendente. Sem `dueDate` nunca fica atrasado; pagamento de outra
+  cobrança ou órfão não entra nos totais.
+- `services/receivablesService.ts`: leitura tolerante (Timestamp → Date, campos opcionais),
+  ordenação determinística, validação de valor/data, autoria só na criação e recebimento limitado
+  ao pendente. `ReceivablePayment` é **imutável**: corrigir é desfazer e registrar de novo.
+  Excluir cobrança com recebimentos é bloqueado.
+- `components/ReceivablesPanel.tsx` aparece no Meu mês depois do `SettlementsPanel`, no Pessoal e
+  nos Espaços. Mostra o resumo (devido/recebido/pendente), formulário manual, recebimentos
+  parciais e histórico com Desfazer. Leitor vê tudo sem controles de escrita.
+- **Sem double counting:** `Receivable` e `ReceivablePayment` não são receita, despesa nem
+  transação. Não entram em `FinanceData`, `computeMonthSummary`, `computeForecast`, Histórico,
+  orçamento ou sobra, e não alteram o cartão. Recebimento não cria `Income`.
+
 ## Segurança em camadas (V6.0 — Lote 3)
 
 | Camada | Garante | Não garante |
@@ -239,7 +266,8 @@ Mudar a categoria de um lançamento muda todos do mesmo estabelecimento (`mercha
 
 ## Testes
 
-`npm test` (Vitest): 9 arquivos em `src/utils/` (incluindo `settlements.test.ts`) — caminhos e escopo salvo
+`npm test` (Vitest): 10 arquivos em `src/utils/` (incluindo `settlements.test.ts` e
+`receivables.test.ts`) — caminhos e escopo salvo
 (`spaces.test.ts`), convites (`invites.test.ts`), permissões de escopo
 (`scopePermissions.test.ts`), erros (`errors.test.ts`), autenticação (`authErrors.test.ts`),
 autoria (`authorship.test.ts`), nome de exibição (`displayName.test.ts`) e divisão de gastos

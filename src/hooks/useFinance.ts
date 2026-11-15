@@ -11,6 +11,12 @@ import {
   unmarkBillPaid,
 } from '../services/financeService'
 import { createSettlement, deleteSettlement } from '../services/settlementsService'
+import {
+  createReceivablePayment,
+  deleteReceivable,
+  deleteReceivablePayment,
+  saveReceivable,
+} from '../services/receivablesService'
 import type {
   Bill,
   BillPayment,
@@ -22,6 +28,12 @@ import type {
 } from '../types/Finance'
 import type { Actor, Authorship } from '../types/Author'
 import type { NewSettlement, Settlement } from '../types/Settlement'
+import type {
+  NewReceivable,
+  NewReceivablePayment,
+  Receivable,
+  ReceivablePayment,
+} from '../types/Receivable'
 import { getErrorMessage } from '../utils/errors'
 import { withAuthorship } from '../utils/authorship'
 
@@ -55,6 +67,8 @@ export function useFinance({ root, month, toast, confirm, actor, memberUids = []
   const [incomes, setIncomes] = useState<Income[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [settlements, setSettlements] = useState<Settlement[]>([])
+  const [receivables, setReceivables] = useState<Receivable[]>([])
+  const [receivablePayments, setReceivablePayments] = useState<ReceivablePayment[]>([])
   const [savingFinance, setSavingFinance] = useState(false)
 
   const notifyError = (cause: unknown) => toast(getErrorMessage(cause), 'error')
@@ -175,12 +189,65 @@ export function useFinance({ root, month, toast, confirm, actor, memberUids = []
     }, 'Acerto desfeito.')
   }
 
+  const handleSaveReceivable = (receivable: NewReceivable) =>
+    runFinance(async () => {
+      const saved = await saveReceivable(root, receivable, actor)
+      setReceivables((current) => replaceItem(current, saved))
+    }, `Cobrança "${receivable.description.trim()}" salva.`)
+
+  const handleDeleteReceivable = async (receivable: Receivable) => {
+    const ok = await confirm({
+      title: 'Excluir cobrança',
+      message: `A cobrança "${receivable.description}" de ${receivable.contact.name} será apagada.`,
+      confirmLabel: 'Excluir',
+      danger: true,
+    })
+    if (!ok) return false
+
+    return runFinance(async () => {
+      await deleteReceivable(root, receivable.id, receivablePayments)
+      setReceivables((current) => current.filter((item) => item.id !== receivable.id))
+    }, `Cobrança "${receivable.description}" excluída.`)
+  }
+
+  const handleCreateReceivablePayment = (
+    receivable: Receivable,
+    payment: NewReceivablePayment,
+  ) =>
+    runFinance(async () => {
+      const saved = await createReceivablePayment(
+        root,
+        payment,
+        receivable,
+        receivablePayments,
+        actor,
+      )
+      setReceivablePayments((current) => [...current, saved])
+    }, 'Recebimento registrado.')
+
+  const handleDeleteReceivablePayment = async (payment: ReceivablePayment) => {
+    const ok = await confirm({
+      title: 'Desfazer recebimento',
+      message: 'O registro deste recebimento será excluído. O valor voltará a constar como pendente.',
+      confirmLabel: 'Desfazer',
+      danger: true,
+    })
+    if (!ok) return false
+
+    return runFinance(async () => {
+      await deleteReceivablePayment(root, payment.id)
+      setReceivablePayments((current) => current.filter((item) => item.id !== payment.id))
+    }, 'Recebimento desfeito.')
+  }
+
   return {
     bills,
     payments,
     incomes,
     expenses,
     settlements,
+    receivables,
+    receivablePayments,
     savingFinance,
     handleSaveBill,
     handleDeleteBill,
@@ -192,10 +259,16 @@ export function useFinance({ root, month, toast, confirm, actor, memberUids = []
     handleDeleteExpense,
     handleCreateSettlement,
     handleDeleteSettlement,
+    handleSaveReceivable,
+    handleDeleteReceivable,
+    handleCreateReceivablePayment,
+    handleDeleteReceivablePayment,
     setBills,
     setPayments,
     setIncomes,
     setExpenses,
     setSettlements,
+    setReceivables,
+    setReceivablePayments,
   }
 }
