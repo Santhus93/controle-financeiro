@@ -191,9 +191,19 @@ Gráficos (`CategoryChart`, `SpendingChart`, `HistoryView`, `CashflowHistory`) s
   - `components/SettlementsPanel.tsx`: exibido no Meu mês em espaços compartilhados com resumo
     ("A receber" e "A pagar"), listagem por gasto, formulário de acerto inline e histórico com opção
     de desfazer (Dono/Editor). Leitor tem visão somente leitura.
-- `firestore.rules` não mudou neste lote: Dono/Editor podem gravar em `spaces/{spaceId}/settlements`;
-  Leitor continua bloqueado pela regra genérica. A validação de teto e participantes é garantida
-  pelo serviço; regras específicas entram no Lote 3.
+- `firestore.rules` (Lote 3): `settlements` saiu da permissão genérica de subcoleções e ganhou regra
+  própria — Dono/Editor criam e excluem, Leitor só lê, atualização é sempre negada. A criação valida
+  campos, uids membros, `fromUid != toUid`, `toUid == split.paidByUid` e autoria
+  (`createdBy.uid`, `createdAt`, `updatedAt`). Teto acumulado e presença em `split.shares` continuam
+  no serviço.
+
+## Segurança em camadas (V6.0 — Lote 3)
+
+| Camada | Garante | Não garante |
+|---|---|---|
+| Interface (`scopePermissions`, `canEdit`, painéis) | esconde controles de escrita do Leitor e aplica a trava do gasto | nada contra um cliente alterado |
+| Serviço (`financeService`, `settlementsService`, `utils/split.ts`) | divisão válida, soma das partes, participante na divisão, teto do acerto, trava de Expense | nada contra escrita direta no Firestore |
+| Firestore Rules | Pessoal isolado por uid; papéis dos espaços; `settlements` só Dono/Editor, formato e autoria validados, update negado | somar coleção, presença de `fromUid` em `split.shares`, consistência transacional |
 
 ## Regras de negócio
 

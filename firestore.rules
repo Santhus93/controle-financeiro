@@ -73,10 +73,65 @@ service cloud.firestore {
 
       allow delete: if false;
 
-      // Dados do espaço: membros leem; dono e editor gravam
+      // Dados do espaço: membros leem; dono e editor gravam.
+      // Acertos têm regra própria logo abaixo; ficam fora desta permissão genérica
+      // porque regras de matches sobrepostos são combinadas por OR.
       match /{sub}/{document=**} {
         allow read: if signedIn() && roleIn(spaceId) != null;
-        allow write: if signedIn() && roleIn(spaceId) in ['owner', 'editor'];
+        allow write: if signedIn()
+          && roleIn(spaceId) in ['owner', 'editor']
+          && sub != 'settlements';
+      }
+
+      // ---------- Acertos de gastos divididos (V6.0 — Lote 3) ----------
+      // Formato gravado por settlementsService.createSettlement:
+      // { expenseId, fromUid, toUid, amount, updatedAt, createdBy, createdAt }
+      function expenseExists(expenseId) {
+        return exists(/databases/$(database)/documents/spaces/$(spaceId)/expenses/$(expenseId));
+      }
+      function expenseData(expenseId) {
+        return get(/databases/$(database)/documents/spaces/$(spaceId)/expenses/$(expenseId)).data;
+      }
+      function expenseHasSplit(expenseId) {
+        return expenseExists(expenseId) && 'split' in expenseData(expenseId);
+      }
+      function expensePaidByUid(expenseId) {
+        return expenseData(expenseId).split.get('paidByUid', '');
+      }
+
+      match /settlements/{settlementId} {
+        allow read: if signedIn() && roleIn(spaceId) != null;
+
+        allow create: if signedIn()
+          && roleIn(spaceId) in ['owner', 'editor']
+          && request.resource.data.keys().hasOnly(
+               ['expenseId', 'fromUid', 'toUid', 'amount', 'updatedAt', 'createdBy', 'createdAt'])
+          && request.resource.data.keys().hasAll(
+               ['expenseId', 'fromUid', 'toUid', 'amount', 'createdBy', 'createdAt'])
+          && request.resource.data.expenseId is string
+          && request.resource.data.expenseId.size() > 0
+          && request.resource.data.fromUid is string
+          && request.resource.data.fromUid.size() > 0
+          && request.resource.data.toUid is string
+          && request.resource.data.toUid.size() > 0
+          && request.resource.data.fromUid != request.resource.data.toUid
+          && request.resource.data.amount is number
+          && request.resource.data.amount > 0
+          && request.resource.data.fromUid in spaceDoc(spaceId).memberUids
+          && request.resource.data.toUid in spaceDoc(spaceId).memberUids
+          && expenseHasSplit(request.resource.data.expenseId)
+          && request.resource.data.toUid == expensePaidByUid(request.resource.data.expenseId)
+          && request.resource.data.createdBy.keys().hasOnly(['uid', 'name', 'email'])
+          && request.resource.data.createdBy.uid == request.auth.uid
+          && request.resource.data.createdBy.get('name', '') is string
+          && request.resource.data.createdBy.get('email', '') is string
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.get('updatedAt', request.time) == request.time;
+
+        // Imutável: correção é excluir e registrar de novo.
+        allow update: if false;
+
+        allow delete: if signedIn() && roleIn(spaceId) in ['owner', 'editor'];
       }
     }
 

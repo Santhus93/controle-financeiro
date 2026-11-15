@@ -139,14 +139,37 @@ e um editor poderia alterar `roles` e se promover a dono.
   publicada e validada (o PWA em cache ainda pode gravar sem autoria).
 
 
-## Acertos de gastos divididos (V6.0 — Lote 2)
+## Acertos de gastos divididos (V6.0 — Lotes 2 e 3)
 
 - Coleção `spaces/{spaceId}/settlements/{settlementId}` com `expenseId`, `fromUid`, `toUid`, `amount`,
-  e autoria opcional (`createdBy`, `createdAt`, `updatedAt`).
+  `updatedAt` e autoria (`createdBy`, `createdAt`). Os três carimbos usam `serverTimestamp()`.
+  `id` não é campo do documento: vem do id gerado pelo `addDoc`.
 - O acerto é **imutável**: não há atualização de documento; correções são feitas excluindo e recriando.
-- Limitações temporárias de segurança:
-  - O Leitor continua bloqueado de gravar pela regra genérica de subcoleções (`roleIn(spaceId) in ['owner', 'editor']`).
-  - Dono e Editor gravam livremente pela regra genérica.
-  - A validação de pertinência (`expenseId`, `fromUid ∈ shares`, `toUid == paidByUid`) e teto (`amount <= remaining`)
-    é garantida na aplicação pelo `settlementsService`.
-  - O endurecimento específico no `firestore.rules` entra no Lote 3.
+- `updatedAt` é gravado desde o Lote 2, mas não consta do tipo `Settlement` nem é lido por
+  `listSettlements`; se vier, a regra exige que seja `request.time` (o campo pode ser omitido).
+
+### Regras específicas (Lote 3)
+
+- `settlements` foi **excluído da permissão genérica de subcoleções** (`sub != 'settlements'`),
+  porque matches sobrepostos são combinados por OR.
+- Regra própria em `match /spaces/{spaceId}/settlements/{settlementId}`:
+  - leitura para qualquer membro (`roleIn(spaceId) != null`);
+  - criação e exclusão apenas para Dono e Editor;
+  - atualização sempre negada.
+- A criação aceita **somente** `expenseId`, `fromUid`, `toUid`, `amount`, `updatedAt`, `createdBy`,
+  `createdAt`; qualquer campo extra é recusado.
+- Validações na criação: `expenseId`/`fromUid`/`toUid` são strings não vazias; `amount` é número > 0;
+  `fromUid != toUid`; os dois uids estão em `memberUids`; o `Expense` existe, tem `split` e
+  `toUid == split.paidByUid`.
+- Autoria: `createdBy.uid == request.auth.uid`, `createdAt == request.time` e, se `updatedAt` vier,
+  `updatedAt == request.time`.
+  `createdBy` aceita apenas `uid`, `name` e `email`; `name`/`email` são opcionais, mas, se enviados,
+  precisam ser strings (a regra usa `.get(campo, '') is string` para não exigi-los).
+- Limitação: a regra **não** verifica se `fromUid` está em `split.shares` — array de mapas não é
+  pesquisável com segurança no Rules Language. Essa presença continua validada no
+  `settlementsService`.
+- Limitação: a regra **não** soma o `amount` da coleção. O teto (`amount <= pendente`) continua no
+  `settlementsService`; um Dono/Editor com acesso direto ao Firestore poderia tentar ultrapassá-lo.
+  Endurecer isso exigiria um acumulador determinístico por `expenseId + fromUid` ou saldo agregado
+  transacional, o que fica fora da V6.0.
+- Leitor: lê, mas não cria nem exclui.
