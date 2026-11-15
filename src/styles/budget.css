@@ -9,7 +9,7 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  border-left: 4px solid var(--purple);
+  border-left: 4px solid var(--brand-primary);
 }
 
 .budget-empty>div:nth-child(2) {
@@ -35,8 +35,8 @@
   display: grid;
   place-items: center;
   border-radius: 12px;
-  background: #f0e9fb;
-  color: var(--purple);
+  background: var(--brand-surface-strong);
+  color: var(--brand-primary);
 }
 
 .budget-alert {
@@ -96,7 +96,7 @@
 .budget-bar {
   height: 9px;
   border-radius: 99px;
-  background: #efe9f6;
+  background: var(--brand-surface-strong);
   overflow: hidden;
 }
 
@@ -163,7 +163,7 @@
 .budget-field>span {
   font-size: 12px;
   font-weight: 700;
-  color: #403649;
+  color: var(--ink);
 }
 
 .budget-field em {
@@ -183,8 +183,8 @@
 }
 
 .budget-field>div:focus-within {
-  border-color: #7c3aed;
-  box-shadow: 0 0 0 3px rgba(124,58,237,.1);
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(31, 111, 84, .15);
 }
 
 .budget-field small {

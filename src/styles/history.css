@@ -44,8 +44,8 @@
 }
 
 .var-badge.neutral {
-  background: #f0edf3;
-  color: #574c62;
+  background: #eef1ef;
+  color: #4d5c55;
 }
 
 .diff-up {
@@ -59,7 +59,7 @@
 .total-row td {
   border-top: 2px solid var(--line);
   font-weight: 800;
-  background: #fbfaff;
+  background: var(--brand-50);
 }
 
 .history-empty {
@@ -92,8 +92,8 @@
   width: 52px;
   height: 52px;
   border-radius: 14px;
-  background: #f0e9fb;
-  color: var(--purple);
+  background: #e8f2ec;
+  color: var(--brand-700);
   display: grid;
   place-items: center;
   margin-bottom: 4px;
@@ -140,8 +140,8 @@
 }
 
 .history-tab-empty-btn-secondary:hover {
-  background: #f7f5fa;
-  border-color: #c9bedb;
+  background: var(--brand-50);
+  border-color: var(--brand-200);
 }
 
 .recurring-card>div:nth-child(2) {
@@ -175,8 +175,8 @@
   display: grid;
   place-items: center;
   border-radius: 9px;
-  background: #f0e9fb;
-  color: var(--purple);
+  background: #e8f2ec;
+  color: var(--brand-700);
 }
 
 .history-error {
@@ -238,8 +238,8 @@
 
 /* Tema escuro */
 html[data-theme="dark"] .history-tab-empty-icon {
-  background: #2a1f40;
-  color: var(--purple-2, #a78bfa);
+  background: #163a2c;
+  color: var(--brand-500);
 }
 
 html[data-theme="dark"] .history-tab-empty-btn-secondary {
@@ -249,7 +249,7 @@ html[data-theme="dark"] .history-tab-empty-btn-secondary {
 }
 
 html[data-theme="dark"] .history-tab-empty-btn-secondary:hover {
-  background: #2a1f40;
+  background: #173b2e;
 }
 
 /* Largura de celular (até 420px) */

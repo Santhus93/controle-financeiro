@@ -22,7 +22,7 @@
   gap: 10px;
   padding: 13px 14px;
   border-radius: 13px;
-  background: #1f1830;
+  background: #0e2a21;
   color: #fff;
   font-size: 13px;
   line-height: 1.45;
@@ -52,7 +52,7 @@
 }
 
 .toast.info>svg {
-  color: #a78bfa;
+  color: #93c5fd;
 }
 
 .toast button {
@@ -84,7 +84,7 @@
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgba(15,8,25,.55);
+  background: rgba(8,31,24,.55);
   backdrop-filter: blur(3px);
   animation: fade-in .15s ease-out;
 }
@@ -105,8 +105,8 @@
   display: grid;
   place-items: center;
   border-radius: 13px;
-  background: #f0e9fb;
-  color: var(--purple);
+  background: #e8f2ec;
+  color: var(--brand-700);
   margin-bottom: 14px;
 }
 
@@ -150,12 +150,13 @@
 
 .dialog-confirm {
   border: 0;
-  background: var(--purple);
-  color: #fff;
+  background: var(--brand-primary);
+  color: var(--brand-text-on-primary);
 }
 
 .dialog-confirm.danger {
   background: #dc2626;
+  color: #fff;
 }
 
 @keyframes fade-in {
@@ -201,7 +202,7 @@
 .skeleton-line {
   display: block;
   border-radius: 8px;
-  background: linear-gradient(90deg,#efe9f6 25%,#f8f5fc 50%,#efe9f6 75%);
+  background: linear-gradient(90deg,#e6efe9 25%,#f4faf6 50%,#e6efe9 75%);
   background-size: 200% 100%;
   animation: shimmer 1.3s infinite linear;
   height: 10px;
@@ -229,7 +230,7 @@
 .skeleton-row {
   display: block;
   border-radius: 8px;
-  background: linear-gradient(90deg,#efe9f6 25%,#f8f5fc 50%,#efe9f6 75%);
+  background: linear-gradient(90deg,#e6efe9 25%,#f4faf6 50%,#e6efe9 75%);
   background-size: 200% 100%;
   animation: shimmer 1.3s infinite linear;
   height: 44px;
@@ -238,7 +239,7 @@
 .skeleton-block {
   display: block;
   border-radius: 8px;
-  background: linear-gradient(90deg,#efe9f6 25%,#f8f5fc 50%,#efe9f6 75%);
+  background: linear-gradient(90deg,#e6efe9 25%,#f4faf6 50%,#e6efe9 75%);
   background-size: 200% 100%;
   animation: shimmer 1.3s infinite linear;
   height: 240px;

@@ -222,7 +222,7 @@
     grid-template-columns: 1fr auto;
     gap: 6px 10px;
     padding: 12px 2px;
-    border-bottom: 1px solid #f0ebf3;
+    border-bottom: 1px solid #eef4f0;
   }
 
   .transactions-table td {
@@ -381,7 +381,7 @@
     border-width: 1px 0 0;
     padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
     background: var(--panel);
-    box-shadow: 0 -8px 24px rgba(43,25,66,.12);
+    box-shadow: 0 -8px 24px rgba(14,59,46,.14);
   }
 
   /* Abas fixas no topo ao rolar */
@@ -390,7 +390,7 @@
     position: fixed;
     top: auto;
     z-index: 60;
-    box-shadow: 0 -8px 24px rgba(43,25,66,.12);
+    box-shadow: 0 -8px 24px rgba(14,59,46,.14);
     bottom: 0;
     left: 0;
     right: 0;

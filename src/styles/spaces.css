@@ -59,7 +59,7 @@
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 6px;
-  box-shadow: 0 10px 32px rgba(43,25,66,.18);
+  box-shadow: 0 10px 32px rgba(14,59,46,.18);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -85,7 +85,7 @@
 }
 
 .space-switcher-item:hover {
-  background: #f7f5fa;
+  background: var(--brand-50);
 }
 
 .space-switcher-item-info {
@@ -125,15 +125,15 @@
 
 /* Item ativo: fundo leve e ícone de check */
 .space-switcher-item.active {
-  background: #f4effc;
+  background: #e5f1ea;
 }
 
 .space-switcher-item.active:hover {
-  background: #ede6f9;
+  background: #d9ebe1;
 }
 
 .space-switcher-check {
-  color: var(--purple);
+  color: var(--brand-700);
   display: grid;
   place-items: center;
 }
@@ -154,8 +154,8 @@
 }
 
 .space-switcher-rename-btn:hover {
-  background: rgba(109,40,217,.12);
-  color: var(--purple);
+  background: rgba(31,111,84,.12);
+  color: var(--brand-700);
 }
 
 .space-switcher-item.space-switcher-new {
@@ -167,7 +167,7 @@
 }
 
 .space-switcher-item.space-switcher-new:hover {
-  background: #f4effc;
+  background: #e5f1ea;
 }
 
 .space-switcher-divider {
@@ -197,8 +197,8 @@
 }
 
 .space-switcher-input:focus {
-  border-color: var(--purple);
-  box-shadow: 0 0 0 3px rgba(109,40,217,.12);
+  border-color: var(--brand-700);
+  box-shadow: 0 0 0 3px rgba(31,111,84,.16);
 }
 
 .space-switcher-create-actions {
@@ -209,8 +209,8 @@
 .space-switcher-create-btn {
   flex: 1;
   padding: 7px 10px;
-  background: var(--purple);
-  color: #fff;
+  background: var(--brand-primary);
+  color: var(--brand-text-on-primary);
   border: 0;
   border-radius: 8px;
   font-size: 12px;
@@ -236,7 +236,7 @@
 }
 
 .space-switcher-cancel-btn:hover:not(:disabled) {
-  background: #f5f5f5;
+  background: #eef4f0;
 }
 
 /* reference-box: nome do espaço ativo como rótulo discreto, sem botão */
@@ -263,19 +263,19 @@
   gap: 10px;
   margin: 0 0 18px;
   padding: 11px 14px;
-  border: 1px solid rgba(124,58,237,.22);
+  border: 1px solid rgba(31,111,84,.22);
   border-radius: 12px;
-  background: rgba(124,58,237,.08);
-  color: var(--purple);
+  background: rgba(31,111,84,.07);
+  color: var(--brand-900);
   font-size: 13px;
   font-weight: 600;
   line-height: 1.4;
 }
 
 html[data-theme="dark"] .reader-banner {
-  border-color: rgba(167,139,250,.28);
-  background: rgba(167,139,250,.12);
-  color: #ddd6fe;
+  border-color: rgba(95,184,138,.28);
+  background: rgba(95,184,138,.12);
+  color: #9fdcbb;
 }
 
 /* Tema escuro */
@@ -294,12 +294,12 @@ html[data-theme="dark"] .space-switcher-item:hover {
 }
 
 html[data-theme="dark"] .space-switcher-menu .space-switcher-item.active {
-  background: rgba(167,139,250,.14);
+  background: rgba(95,184,138,.14);
   color: var(--ink);
 }
 
 html[data-theme="dark"] .space-switcher-menu .space-switcher-item.active:hover {
-  background: rgba(167,139,250,.2);
+  background: rgba(95,184,138,.2);
 }
 
 html[data-theme="dark"] .space-switcher-item-name {
@@ -311,7 +311,7 @@ html[data-theme="dark"] .space-switcher-item-sub {
 }
 
 html[data-theme="dark"] .space-switcher-check {
-  color: var(--purple-2, #a78bfa);
+  color: var(--brand-500);
 }
 
 html[data-theme="dark"] .space-switcher-rename-btn {
@@ -319,16 +319,16 @@ html[data-theme="dark"] .space-switcher-rename-btn {
 }
 
 html[data-theme="dark"] .space-switcher-rename-btn:hover {
-  color: var(--purple-2, #a78bfa);
-  background: rgba(167,139,250,.2);
+  color: var(--brand-500);
+  background: rgba(95,184,138,.18);
 }
 
 html[data-theme="dark"] .space-switcher-item.space-switcher-new {
-  color: var(--purple-2, #a78bfa);
+  color: var(--brand-500);
 }
 
 html[data-theme="dark"] .space-switcher-item.space-switcher-new:hover {
-  background: rgba(167,139,250,.1);
+  background: rgba(95,184,138,.1);
 }
 
 html[data-theme="dark"] .space-switcher-input {
@@ -343,7 +343,7 @@ html[data-theme="dark"] .space-switcher-cancel-btn {
 }
 
 html[data-theme="dark"] .space-switcher-cancel-btn:hover:not(:disabled) {
-  background: #2a1f40;
+  background: #173b2e;
 }
 
 /* Largura de celular (até 420px) */
@@ -373,7 +373,7 @@ html[data-theme="dark"] .space-switcher-cancel-btn:hover:not(:disabled) {
   padding: 0 5px;
   border-radius: 99px;
   background: #f59e0b;
-  color: #1f1830;
+  color: #1a231d;
   font-size: 10px;
   font-weight: 800;
 }
@@ -418,7 +418,7 @@ html[data-theme="dark"] .space-switcher-cancel-btn:hover:not(:disabled) {
   font-size: 11px;
   line-height: 1.45;
   color: var(--muted);
-  background: rgba(124, 58, 237, 0.08);
+  background: rgba(31,111,84,.07);
 }
 
 /* Janela de membros */
@@ -528,8 +528,8 @@ html[data-theme="dark"] .space-switcher-cancel-btn:hover:not(:disabled) {
 
 .members-input:focus,
 .members-role:focus {
-  border-color: #7c3aed;
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+  border-color: var(--brand-700);
+  box-shadow: 0 0 0 3px rgba(31,111,84,.16);
 }
 
 .members-role-label {
@@ -537,8 +537,8 @@ html[data-theme="dark"] .space-switcher-cancel-btn:hover:not(:disabled) {
   font-weight: 800;
   padding: 4px 9px;
   border-radius: 99px;
-  background: #f0e9fb;
-  color: #5b21b6;
+  background: #e8f2ec;
+  color: var(--brand-700);
   white-space: nowrap;
 }
 
@@ -557,9 +557,9 @@ html[data-theme="dark"] .space-switcher-cancel-btn:hover:not(:disabled) {
 .members-invite-result {
   margin-top: 14px;
   padding: 14px;
-  border: 1px solid #d9c9f3;
+  border: 1px solid var(--brand-200);
   border-radius: 12px;
-  background: rgba(124, 58, 237, 0.06);
+  background: rgba(31,111,84,.05);
 }
 
 .members-invite-result strong {
@@ -622,8 +622,8 @@ html[data-theme="dark"] .space-switcher-cancel-btn:hover:not(:disabled) {
 
 /* Tema escuro */
 html[data-theme="dark"] .members-role-label {
-  background: #2a1f40;
-  color: #c4b5fd;
+  background: #163a2c;
+  color: #8fd3ae;
 }
 
 html[data-theme="dark"] .members-icon-btn.danger {
@@ -632,10 +632,10 @@ html[data-theme="dark"] .members-icon-btn.danger {
 }
 
 html[data-theme="dark"] .members-invite-result {
-  border-color: #4c3a6b;
-  background: #211a2e;
+  border-color: #2e6b52;
+  background: #10291f;
 }
 
 html[data-theme="dark"] .space-switcher-badge {
-  color: #1a1425;
+  color: #1a231d;
 }

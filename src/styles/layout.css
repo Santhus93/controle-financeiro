@@ -1,7 +1,7 @@
 /* Topo, abas de visualizacao, sessao do usuario, avisos de nuvem e rodape */
 
 .hero {
-  background: radial-gradient(circle at 80% 20%,rgba(190,149,255,.25),transparent 25%),linear-gradient(135deg,#241039 0%,#4c1d75 48%,#6d28d9 100%);
+  background: radial-gradient(circle at 80% 20%,rgba(95,184,138,.18),transparent 28%),linear-gradient(135deg,var(--brand-900) 0%,var(--brand-700) 100%);
   color: #fff;
   padding: 52px 24px 85px;
 }
@@ -84,13 +84,13 @@ footer {
   margin: 0 4px 12px;
   padding: 10px 12px;
   border-radius: 10px;
-  background: #eee7f8;
-  color: #5b21b6;
+  background: var(--brand-surface-strong);
+  color: var(--brand-900);
   font-size: 12px;
   font-weight: 700;
 }
 
-/* V5 - Aviso de e-mail não confirmado */
+/* V5 - Aviso de e-mail não confirmado (semântica de atenção, não da marca) */
 .email-verify-banner {
   display: flex;
   flex-wrap: wrap;
@@ -98,17 +98,17 @@ footer {
   gap: 12px;
   margin: 0 0 14px;
   padding: 12px 14px;
-  border: 1px solid #e4d8f5;
+  border: 1px solid #f0dcb0;
   border-radius: 12px;
-  background: #f7f2fe;
-  color: #4c1d75;
+  background: #fdf6e7;
+  color: #6b4a00;
   font-size: 12px;
 }
 
 .email-verify-banner>svg {
   flex: none;
   margin-top: 2px;
-  color: #6d28d9;
+  color: #b45309;
 }
 
 .email-verify-text {
@@ -124,7 +124,7 @@ footer {
 
 .email-verify-text span {
   line-height: 1.45;
-  color: #5f5470;
+  color: #7a6440;
 }
 
 .email-verify-text em {
@@ -139,9 +139,9 @@ footer {
 }
 
 .email-verify-actions button {
-  border: 1px solid #d8c7f0;
+  border: 1px solid #e7d2a4;
   background: #fff;
-  color: #5b21b6;
+  color: #8a5a00;
   border-radius: 8px;
   padding: 7px 11px;
   font-size: 11.5px;
@@ -150,7 +150,7 @@ footer {
 }
 
 .email-verify-actions button:hover:not(:disabled) {
-  background: #efe7fb;
+  background: #faeed6;
 }
 
 .email-verify-actions button:disabled {
@@ -167,7 +167,7 @@ footer {
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 12px;
-  box-shadow: 0 6px 20px rgba(43,25,66,.045);
+  box-shadow: 0 6px 20px rgba(14,59,46,.05);
 }
 
 .view-tabs button {
@@ -184,13 +184,13 @@ footer {
 }
 
 .view-tabs button.active {
-  background: var(--purple);
-  color: #fff;
+  background: var(--brand-primary);
+  color: var(--brand-text-on-primary);
 }
 
 .view-tabs button:not(.active):hover {
-  background: #f5f0fd;
-  color: var(--purple);
+  background: var(--brand-surface);
+  color: var(--brand-700);
 }
 
 /* V4 - Meu mês, contas fixas e receitas */
@@ -294,11 +294,11 @@ footer {
   gap: 7px;
   padding: 7px 14px;
   border-radius: 99px;
-  background: var(--purple);
-  color: #fff;
+  background: var(--brand-primary);
+  color: var(--brand-text-on-primary);
   font-size: 12px;
   font-weight: 700;
-  box-shadow: 0 8px 24px rgba(43,25,66,.25);
+  box-shadow: 0 8px 24px rgba(14,59,46,.25);
 }
 
 /* ---------- Meu perfil (V5.3) ---------- */
@@ -309,7 +309,7 @@ footer {
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgba(20,12,32,.55);
+  background: rgba(8,31,24,.55);
   backdrop-filter: blur(3px);
 }
 
@@ -360,8 +360,8 @@ footer {
 }
 
 .profile-dialog-close:hover {
-  background: rgba(109,40,217,.08);
-  color: var(--purple);
+  background: rgba(31,111,84,.08);
+  color: var(--brand-700);
 }
 
 .profile-field {
@@ -389,7 +389,7 @@ footer {
 }
 
 .profile-field input:read-only {
-  background: rgba(109,40,217,.05);
+  background: rgba(31,111,84,.05);
   color: var(--muted);
 }
 
@@ -430,8 +430,8 @@ footer {
 
 .profile-dialog-actions button.primary {
   border-color: transparent;
-  background: var(--purple);
-  color: #fff;
+  background: var(--brand-primary);
+  color: var(--brand-text-on-primary);
 }
 
 .profile-dialog-actions button:disabled {

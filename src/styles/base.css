@@ -1,16 +1,36 @@
 /* Variaveis, reset, containers e componentes genericos */
 
 :root {
-  --purple: #5b21b6;
-  --purple-2: #7c3aed;
-  --ink: #20172f;
-  --muted: #756d80;
-  --line: #e7e1ec;
-  --panel: #fff;
-  --bg: #f7f5fa;
+  /* ---------- Identidade: Verde Cofre ---------- */
+  --brand-900: #0E3B2E;
+  --brand-700: #1F6F54;
+  --brand-500: #5FB88A;
+  --brand-200: #D7E7DD;
+  --brand-50: #F6FBF7;
+  --brand-primary: var(--brand-700);
+  --brand-primary-hover: #185C46;
+  --brand-surface: var(--brand-50);
+  --brand-surface-strong: var(--brand-200);
+  --brand-text-on-primary: #FFFFFF;
+
+  /* Compatibilidade: tokens antigos de identidade agora apontam para a marca.
+     Semânticas (pago/parcial/atenção/erro) NÃO usam estes tokens. */
+  --purple: var(--brand-700);
+  --purple-2: var(--brand-500);
+
+  /* ---------- Semânticas (independentes da marca) ---------- */
   --green: #14804a;
   --red: #b42318;
-  --shadow: 0 14px 40px rgba(43,25,66,.08);
+  --info: #1d4ed8;
+  --info-soft: rgba(37, 99, 235, 0.12);
+
+  /* ---------- Neutros ---------- */
+  --ink: #16241f;
+  --muted: #66756d;
+  --line: #dfe8e2;
+  --panel: #fff;
+  --bg: var(--brand-50);
+  --shadow: 0 14px 40px rgba(14,59,46,.08);
 }
 
 .container-app {
@@ -22,10 +42,14 @@
 .button-primary {
   border: 0;
   border-radius: 11px;
-  background: var(--purple);
-  color: #fff;
+  background: var(--brand-primary);
+  color: var(--brand-text-on-primary);
   padding: 12px 18px;
   font-weight: 700;
+}
+
+.button-primary:hover:not(:disabled) {
+  background: var(--brand-primary-hover);
 }
 
 .button-primary:disabled {

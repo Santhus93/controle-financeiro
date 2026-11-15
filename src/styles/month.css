@@ -49,7 +49,7 @@
 }
 
 .month-nav button:hover {
-  background: #f5f0fd;
+  background: var(--brand-50);
 }
 
 .month-welcome {
@@ -95,7 +95,7 @@
 }
 
 .dot.card {
-  background: #6d28d9;
+  background: var(--brand-700);
 }
 
 .dot.bills {
@@ -120,7 +120,7 @@
 }
 
 .due-row.invoice {
-  border-left-color: #6d28d9;
+  border-left-color: var(--brand-700);
 }
 
 .due-row.paid {
@@ -137,7 +137,7 @@
 }
 
 .due-row.pending {
-  border-left-color: #c4b5dc;
+  border-left-color: #c2cbc6;
 }
 
 .due-row.income {
@@ -150,8 +150,8 @@
   display: grid;
   place-items: center;
   border-radius: 10px;
-  background: #f0e9fb;
-  color: var(--purple);
+  background: #e8f2ec;
+  color: var(--brand-700);
 }
 
 .due-row.paid .due-icon,
@@ -214,8 +214,8 @@
   align-items: center;
   gap: 5px;
   border: 0;
-  background: var(--purple);
-  color: #fff;
+  background: var(--brand-primary);
+  color: var(--brand-text-on-primary);
   border-radius: 9px;
   padding: 8px 12px;
   font-weight: 700;
@@ -240,7 +240,7 @@
 
 .due-pay-form input {
   width: 92px;
-  border: 1px solid #7c3aed;
+  border: 1px solid var(--brand-700);
   border-radius: 9px;
   padding: 7px 9px;
   outline: 0;
@@ -272,8 +272,8 @@
 }
 
 .status-badge.pending {
-  background: #f0edf3;
-  color: #574c62;
+  background: #eef1ef;
+  color: #4d5c55;
 }
 
 .month-empty {
@@ -285,15 +285,15 @@
   align-items: flex-start;
   gap: 10px;
   padding: 14px 18px;
-  background: #f8f4ff;
-  color: #4c1d75;
+  background: var(--brand-50);
+  color: var(--brand-900);
   font-size: 13px;
   line-height: 1.5;
 }
 
 .finance-form {
-  border: 1px solid #d9c9f3;
-  background: #fbfaff;
+  border: 1px solid var(--brand-200);
+  background: var(--brand-50);
   border-radius: 14px;
   padding: 16px;
   margin-bottom: 16px;
@@ -327,8 +327,8 @@
 }
 
 .segmented button.active {
-  background: var(--purple);
-  color: #fff;
+  background: var(--brand-primary);
+  color: var(--brand-text-on-primary);
 }
 
 .finance-hint {
@@ -367,8 +367,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 11px;
-  background: #f0e9fb;
-  color: var(--purple);
+  background: #e8f2ec;
+  color: var(--brand-700);
 }
 
 .finance-day small {
@@ -801,10 +801,10 @@
 
 .finance-locked-alert {
   padding: 8px 12px;
-  border: 1px solid rgba(109, 40, 217, 0.25);
+  border: 1px solid rgba(31,111,84,.28);
   border-radius: 9px;
-  background: rgba(109, 40, 217, 0.08);
-  color: var(--purple);
+  background: rgba(31,111,84,.08);
+  color: var(--brand-700);
   font-size: 12px;
   font-weight: 600;
   line-height: 1.45;
@@ -813,9 +813,9 @@
 }
 
 html[data-theme="dark"] .finance-locked-alert {
-  border-color: rgba(167, 139, 250, 0.3);
-  background: rgba(167, 139, 250, 0.12);
-  color: #ddd6fe;
+  border-color: rgba(95,184,138,.3);
+  background: rgba(95,184,138,.12);
+  color: #9fdcbb;
 }
 
 .split-message.locked {
@@ -861,8 +861,8 @@ html[data-theme="dark"] .finance-locked-alert {
 }
 
 .settlements-stat.payable .settlements-stat-icon {
-  background: rgba(109, 40, 217, 0.12);
-  color: var(--purple);
+  background: var(--info-soft);
+  color: var(--info);
 }
 
 .settlements-stat>div {
@@ -976,8 +976,8 @@ html[data-theme="dark"] .finance-locked-alert {
 }
 
 .settlement-status-badge.partial {
-  background: rgba(109, 40, 217, 0.12);
-  color: var(--purple);
+  background: var(--info-soft);
+  color: var(--info);
 }
 
 .settlement-status-badge.pending {
@@ -987,6 +987,16 @@ html[data-theme="dark"] .finance-locked-alert {
 
 html[data-theme="dark"] .settlement-status-badge.pending {
   color: #fde047;
+}
+
+html[data-theme="dark"] .settlement-status-badge.partial {
+  background: rgba(37,99,235,.18);
+  color: #93c5fd;
+}
+
+html[data-theme="dark"] .settlements-stat.payable .settlements-stat-icon {
+  background: rgba(37,99,235,.18);
+  color: #93c5fd;
 }
 
 .settlement-amounts {
@@ -1101,8 +1111,8 @@ html[data-theme="dark"] .settlement-amounts {
   gap: 6px;
   padding: 10px;
   border-radius: 9px;
-  background: rgba(109, 40, 217, 0.04);
-  border: 1px solid rgba(109, 40, 217, 0.15);
+  background: rgba(31,111,84,.04);
+  border: 1px solid rgba(31,111,84,.18);
 }
 
 .settlement-form-row {
@@ -1244,8 +1254,8 @@ html[data-theme="dark"] .settlement-amounts {
   gap: 8px;
   padding: 12px;
   border-radius: 10px;
-  background: rgba(109, 40, 217, 0.04);
-  border: 1px solid rgba(109, 40, 217, 0.15);
+  background: rgba(31,111,84,.04);
+  border: 1px solid rgba(31,111,84,.18);
 }
 
 .receivable-form.payment {
@@ -1339,8 +1349,8 @@ html[data-theme="dark"] .settlement-amounts {
 }
 
 .receivable-status-badge.partial {
-  background: rgba(109, 40, 217, 0.12);
-  color: var(--purple);
+  background: var(--info-soft);
+  color: var(--info);
 }
 
 .receivable-status-badge.pending {
@@ -1355,6 +1365,11 @@ html[data-theme="dark"] .settlement-amounts {
 
 html[data-theme="dark"] .receivable-status-badge.pending {
   color: #fde047;
+}
+
+html[data-theme="dark"] .receivable-status-badge.partial {
+  background: rgba(37,99,235,.18);
+  color: #93c5fd;
 }
 
 html[data-theme="dark"] .receivable-status-badge.overdue {
@@ -1440,8 +1455,8 @@ html[data-theme="dark"] .receivable-amounts {
 }
 
 .receivable-action-btn:hover {
-  background: rgba(109, 40, 217, 0.06);
-  color: var(--purple);
+  background: rgba(31,111,84,.06);
+  color: var(--brand-700);
 }
 
 .receivable-action-btn.danger:hover {
