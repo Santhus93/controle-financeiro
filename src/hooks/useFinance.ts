@@ -12,10 +12,12 @@ import {
 } from '../services/financeService'
 import { createSettlement, deleteSettlement } from '../services/settlementsService'
 import {
+  createReceivableFromTransaction,
   createReceivablePayment,
   deleteReceivable,
   deleteReceivablePayment,
   saveReceivable,
+  type CardReceivableInput,
 } from '../services/receivablesService'
 import type {
   Bill,
@@ -27,6 +29,7 @@ import type {
   NewIncome,
 } from '../types/Finance'
 import type { Actor, Authorship } from '../types/Author'
+import type { Transaction } from '../types/Transaction'
 import type { NewSettlement, Settlement } from '../types/Settlement'
 import type {
   NewReceivable,
@@ -225,6 +228,21 @@ export function useFinance({ root, month, toast, confirm, actor, memberUids = []
       setReceivablePayments((current) => [...current, saved])
     }, 'Recebimento registrado.')
 
+  const handleCreateReceivableFromTransaction = (
+    invoiceId: string,
+    transaction: Transaction,
+    input: CardReceivableInput,
+  ) =>
+    runFinance(async () => {
+      const saved = await createReceivableFromTransaction(
+        root,
+        { invoiceId, transaction, ...input },
+        receivables,
+        actor,
+      )
+      setReceivables((current) => [...current, saved])
+    }, `Cobrança de "${input.contact.name.trim()}" criada.`)
+
   const handleDeleteReceivablePayment = async (payment: ReceivablePayment) => {
     const ok = await confirm({
       title: 'Desfazer recebimento',
@@ -263,6 +281,7 @@ export function useFinance({ root, month, toast, confirm, actor, memberUids = []
     handleDeleteReceivable,
     handleCreateReceivablePayment,
     handleDeleteReceivablePayment,
+    handleCreateReceivableFromTransaction,
     setBills,
     setPayments,
     setIncomes,

@@ -1,13 +1,46 @@
 import { describe, expect, it } from 'vitest'
 import type { Receivable, ReceivablePayment } from '../types/Receivable'
+import type { Transaction } from '../types/Transaction'
 import {
+  canCreateReceivableFromTransaction,
+  findReceivableByTransaction,
+  hasReceivableForTransaction,
   receivableBalance,
   receivablePaymentsFor,
   sortReceivables,
   totalReceivableBalance,
+  validateCardReceivableAmount,
+  validateCardReceivableSource,
 } from './receivables'
 
 const TODAY = '2026-12-21'
+
+function makeTransaction(overrides: Partial<Transaction> = {}): Transaction {
+  return {
+    id: 't1',
+    date: '2026-12-01',
+    title: 'Magazine XYZ',
+    originalTitle: 'MAGAZINE XYZ',
+    amount: 600,
+    type: 'purchase',
+    category: 'Compras',
+    ...overrides,
+  }
+}
+
+function makeCardReceivable(overrides: Partial<Receivable> = {}): Receivable {
+  return makeReceivable({
+    id: 'card-1',
+    description: 'Magazine XYZ',
+    amount: 600,
+    source: {
+      type: 'card_transaction',
+      invoiceId: 'inv-1',
+      transactionId: 't1',
+    },
+    ...overrides,
+  })
+}
 
 function makeReceivable(overrides: Partial<Receivable> = {}): Receivable {
   return {
@@ -246,5 +279,142 @@ describe('ordenação e agrupamento', () => {
     ])
 
     expect(ordered.map((r) => r.id)).toEqual(['antes', 'depois', 'sem-data'])
+  })
+})
+
+describe('elegibilidade de lançamento do cartão', () => {
+  it('1. purchase positiva é elegível', () => {
+    expect(canCreateReceivableFromTransaction(makeTransaction({ type: 'purchase' }))).toBe(true)
+  })
+
+  it('2. installment positiva é elegível', () => {
+    expect(
+      canCreateReceivableFromTransaction(
+        makeTransaction({ type: 'installment', amount: 200 }),
+      ),
+    ).toBe(true)
+  })
+
+  it('3. pix_credit positivo é elegível', () => {
+    expect(canCreateReceivableFromTransaction(makeTransaction({ type: 'pix_credit' }))).toBe(true)
+  })
+
+  it('4. payment é bloqueado', () => {
+    expect(canCreateReceivableFromTransaction(makeTransaction({ type: 'payment' }))).toBe(false)
+  })
+
+  it('5. refund é bloqueado', () => {
+    expect(canCreateReceivableFromTransaction(makeTransaction({ type: 'refund' }))).toBe(false)
+  })
+
+  it('6. other é bloqueado', () => {
+    expect(canCreateReceivableFromTransaction(makeTransaction({ type: 'other' }))).toBe(false)
+  })
+
+  it('7. valor zero ou negativo é bloqueado', () => {
+    expect(canCreateReceivableFromTransaction(makeTransaction({ amount: 0 }))).toBe(false)
+    expect(canCreateReceivableFromTransaction(makeTransaction({ amount: -600 }))).toBe(false)
+  })
+})
+
+describe('valor e vínculo da cobrança do cartão', () => {
+  it('8. valor integral é permitido', () => {
+    expect(validateCardReceivableAmount(600, 600)).toBeNull()
+  })
+
+  it('9. cobrança parcial é permitida', () => {
+    expect(validateCardReceivableAmount(600, 400)).toBeNull()
+  })
+
+  it('10. valor acima da transação é bloqueado', () => {
+    expect(validateCardReceivableAmount(600, 600.01)).not.toBeNull()
+    expect(validateCardReceivableAmount(600, 601)).not.toBeNull()
+  })
+
+  it('11. invoiceId vazio é bloqueado', () => {
+    expect(validateCardReceivableSource('', 't1')).not.toBeNull()
+    expect(validateCardReceivableSource('   ', 't1')).not.toBeNull()
+  })
+
+  it('12. transactionId vazio é bloqueado', () => {
+    expect(validateCardReceivableSource('inv-1', '')).not.toBeNull()
+    expect(validateCardReceivableSource('inv-1', '   ')).not.toBeNull()
+  })
+
+  it('13. duplicidade de invoiceId + transactionId é encontrada', () => {
+    const receivables = [makeCardReceivable()]
+
+    expect(findReceivableByTransaction(receivables, 'inv-1', 't1')?.id).toBe('card-1')
+    expect(hasReceivableForTransaction(receivables, 'inv-1', 't1')).toBe(true)
+  })
+
+  it('14. mesma transação em outra fatura não é duplicidade', () => {
+    const receivables = [makeCardReceivable()]
+
+    expect(findReceivableByTransaction(receivables, 'inv-2', 't1')).toBeUndefined()
+    expect(hasReceivableForTransaction(receivables, 'inv-2', 't1')).toBe(false)
+  })
+
+  it('15. encontra a cobrança pelo vínculo da transação', () => {
+    const receivables = [
+      makeCardReceivable({ id: 'outra', source: { type: 'manual' } }),
+      makeCardReceivable(),
+    ]
+
+    expect(findReceivableByTransaction(receivables, 'inv-1', 't1')?.id).toBe('card-1')
+  })
+
+  it('16. cobrança manual não entra na busca por transação', () => {
+    const receivables = [makeReceivable({ id: 'manual-1' })]
+
+    expect(findReceivableByTransaction(receivables, 'inv-1', 't1')).toBeUndefined()
+    expect(hasReceivableForTransaction(receivables, 'inv-1', 't1')).toBe(false)
+  })
+})
+
+describe('cobrança do cartão e a fatura', () => {
+  it('17. excluir a cobrança não altera a Transaction', () => {
+    const transaction = makeTransaction()
+    const snapshot = { ...transaction }
+    const receivables = [makeCardReceivable()]
+    const remaining = receivables.filter((receivable) => receivable.id !== 'card-1')
+
+    expect(remaining).toEqual([])
+    expect(transaction).toEqual(snapshot)
+    expect(totalReceivableBalance(remaining, [], TODAY)).toEqual({
+      due: 0,
+      received: 0,
+      pending: 0,
+    })
+  })
+
+  it('18. cobrança do cartão com recebimento calcula o saldo normal', () => {
+    const receivable = makeCardReceivable({ amount: 600 })
+    const balance = receivableBalance(receivable, [makePayment({ receivableId: 'card-1' })], TODAY)
+
+    expect(balance).toEqual({
+      receivableId: 'card-1',
+      due: 600,
+      received: 200,
+      pending: 400,
+      status: 'partial',
+    })
+  })
+
+  it('19. não há double counting entre fatura e cobrança', () => {
+    const transactions = [makeTransaction({ amount: 600 })]
+    const cardTotal = transactions.reduce((sum, item) => sum + item.amount, 0)
+    const receivables = [makeCardReceivable({ amount: 400 })]
+    const payments = [makePayment({ receivableId: 'card-1', amount: 200 })]
+    const totals = totalReceivableBalance(receivables, payments, TODAY)
+
+    // O cartão continua em R$ 600; a cobrança e o recebimento não entram nele.
+    expect(cardTotal).toBe(600)
+    expect(cardTotal).not.toBe(1000)
+    expect(cardTotal).not.toBe(800)
+    expect(cardTotal).not.toBe(400)
+
+    // A cobrança é apenas informativa.
+    expect(totals).toEqual({ due: 400, received: 200, pending: 200 })
   })
 })

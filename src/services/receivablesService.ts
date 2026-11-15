@@ -10,6 +10,7 @@ import {
 import { db } from '../firebase/firebase'
 import { createAuthorshipFields } from './authorship'
 import type { Actor } from '../types/Author'
+import type { Transaction } from '../types/Transaction'
 import type {
   NewReceivable,
   NewReceivablePayment,
@@ -21,9 +22,13 @@ import type {
 import { optimisticAuthorship, readAuthorship } from '../utils/authorship'
 import { formatCurrency } from '../utils/currency'
 import {
+  canCreateReceivableFromTransaction,
+  findReceivableByTransaction,
   receivableBalance,
   receivablePaymentsFor,
   sortReceivables,
+  validateCardReceivableAmount,
+  validateCardReceivableSource,
 } from '../utils/receivables'
 import { fromCents, toCents } from '../utils/split'
 
@@ -33,6 +38,20 @@ function receivablesCollection(root: string) {
 
 function paymentsCollection(root: string) {
   return collection(db, root, 'receivablePayments')
+}
+
+/** Dados do formulário de cobrança de um lançamento do cartão. */
+export interface CardReceivableInput {
+  contact: ReceivableContact
+  amount: number
+  dueDate?: string
+  notes?: string
+}
+
+/** Entrada completa da criação a partir de uma Transaction. */
+export interface CreateReceivableFromTransactionInput extends CardReceivableInput {
+  invoiceId: string
+  transaction: Transaction
 }
 
 function isValidIsoDate(value: string): boolean {
@@ -206,6 +225,91 @@ export async function saveReceivable(
   }
 
   const source: ReceivableSource = { type: 'manual' }
+
+  const ref = await addDoc(receivablesCollection(root), {
+    ...base,
+    source,
+    ...createAuthorshipFields(actor),
+  })
+
+  return {
+    id: ref.id,
+    ...base,
+    source,
+    ...optimisticAuthorship(actor),
+  }
+}
+
+/**
+ * Cria uma cobrança a partir de um lançamento do cartão.
+ * A Transaction não é alterada: a fatura continua sendo a única fonte da despesa.
+ */
+export async function createReceivableFromTransaction(
+  root: string,
+  input: CreateReceivableFromTransactionInput,
+  currentReceivables: Receivable[],
+  actor?: Actor,
+): Promise<Receivable> {
+  const { transaction } = input
+  if (!transaction || typeof transaction.id !== 'string') {
+    throw new Error('Lançamento do cartão inválido.')
+  }
+
+  const invoiceId = input.invoiceId.trim()
+  const transactionId = transaction.id.trim()
+  const linkError = validateCardReceivableSource(invoiceId, transactionId)
+  if (linkError) throw new Error(linkError)
+
+  if (!canCreateReceivableFromTransaction(transaction)) {
+    throw new Error('Este lançamento do cartão não pode ser cobrado.')
+  }
+
+  const amountError = validateCardReceivableAmount(transaction.amount, input.amount)
+  if (amountError) throw new Error(amountError)
+
+  if (findReceivableByTransaction(currentReceivables, invoiceId, transactionId)) {
+    throw new Error('Este lançamento já possui uma cobrança.')
+  }
+
+  const name = input.contact?.name?.trim() ?? ''
+  if (name.length < 2 || name.length > 60) {
+    throw new Error('Informe a pessoa com 2 a 60 caracteres.')
+  }
+
+  const description = (transaction.title || transaction.originalTitle || '').trim()
+  if (description.length < 2) {
+    throw new Error('O lançamento não possui descrição para a cobrança.')
+  }
+
+  const dueDate = input.dueDate?.trim() ?? ''
+  if (dueDate && !isValidIsoDate(dueDate)) {
+    throw new Error('Informe um vencimento válido.')
+  }
+
+  const email = input.contact.email?.trim() ?? ''
+  const phone = input.contact.phone?.trim() ?? ''
+  const notes = input.notes?.trim() ?? ''
+  const amountCents = toCents(input.amount)
+
+  const contact: ReceivableContact = {
+    name,
+    ...(email ? { email } : {}),
+    ...(phone ? { phone } : {}),
+  }
+
+  const source: ReceivableSource = {
+    type: 'card_transaction',
+    invoiceId,
+    transactionId,
+  }
+
+  const base = {
+    description,
+    contact,
+    amount: fromCents(amountCents),
+    ...(dueDate ? { dueDate } : {}),
+    ...(notes ? { notes } : {}),
+  }
 
   const ref = await addDoc(receivablesCollection(root), {
     ...base,

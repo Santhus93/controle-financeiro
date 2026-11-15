@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Check, Coins, History, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react'
 import type {
   NewReceivable,
@@ -11,11 +11,11 @@ import { formatCurrency } from '../utils/currency'
 import { formatAuthorLabel } from '../utils/authorship'
 import { parseMoneyInput, toMoneyInput, todayIso } from '../utils/monthPlan'
 import {
+  RECEIVABLE_STATUS_LABELS,
   receivableBalance,
   receivablePaymentsFor,
   sortReceivables,
   totalReceivableBalance,
-  type ReceivableStatus,
 } from '../utils/receivables'
 import { toCents } from '../utils/split'
 
@@ -24,6 +24,7 @@ interface ReceivablesPanelProps {
   payments: ReceivablePayment[]
   saving?: boolean
   canEdit?: boolean
+  focusReceivableId?: string
   onSave: (receivable: NewReceivable) => Promise<boolean>
   onDelete: (receivable: Receivable) => Promise<boolean>
   onCreatePayment: (
@@ -45,12 +46,7 @@ interface ReceivableForm {
   source: ReceivableSource
 }
 
-const STATUS_LABELS: Record<ReceivableStatus, string> = {
-  pending: 'Pendente',
-  partial: 'Parcial',
-  paid: 'Pago',
-  overdue: 'Atrasada',
-}
+const STATUS_LABELS = RECEIVABLE_STATUS_LABELS
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -66,6 +62,7 @@ export function ReceivablesPanel({
   payments,
   saving = false,
   canEdit = true,
+  focusReceivableId,
   onSave,
   onDelete,
   onCreatePayment,
@@ -83,6 +80,14 @@ export function ReceivablesPanel({
   const today = todayIso()
   const ordered = sortReceivables(receivables)
   const totals = totalReceivableBalance(receivables, payments, today)
+
+  // "Ver cobrança" no cartão leva para o Meu mês e rola até o cartão correspondente.
+  useEffect(() => {
+    if (!focusReceivableId) return
+    document
+      .getElementById(`receivable-${focusReceivableId}`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [focusReceivableId])
 
   const openNew = () => {
     setFormError('')
@@ -381,7 +386,13 @@ export function ReceivablesPanel({
           )
 
           return (
-            <div className="receivable-card" key={receivable.id}>
+            <div
+              className={`receivable-card${
+                focusReceivableId === receivable.id ? ' receivable-focus' : ''
+              }`}
+              key={receivable.id}
+              id={`receivable-${receivable.id}`}
+            >
               <div className="receivable-header">
                 <div className="receivable-person">
                   <strong>{receivable.contact.name}</strong>

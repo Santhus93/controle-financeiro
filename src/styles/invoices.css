@@ -942,3 +942,98 @@ td {
     padding: 17px;
   }
 }
+
+/* ---------- Cobrança de lançamento do cartão (V6.1 — Lote 2) ---------- */
+
+.transaction-receivable {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.receivable-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.receivable-badge.pending {
+  background: rgba(234, 179, 8, 0.14);
+  color: #b45309;
+}
+
+.receivable-badge.partial {
+  background: rgba(109, 40, 217, 0.12);
+  color: var(--purple);
+}
+
+.receivable-badge.paid {
+  background: rgba(20, 128, 74, 0.12);
+  color: var(--green);
+}
+
+.receivable-badge.overdue {
+  background: rgba(180, 35, 24, 0.12);
+  color: var(--red);
+}
+
+html[data-theme="dark"] .receivable-badge.pending {
+  color: #fde047;
+}
+
+html[data-theme="dark"] .receivable-badge.overdue {
+  color: #fca5a5;
+}
+
+.receivable-inline-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.receivable-inline-action:hover {
+  background: rgba(109, 40, 217, 0.06);
+  color: var(--purple);
+}
+
+.receivable-inline-action.charge {
+  margin-top: 4px;
+  color: var(--purple);
+  border-color: rgba(109, 40, 217, 0.25);
+}
+
+.card-receivable-form {
+  margin-bottom: 16px;
+}
+
+.card-receivable-target {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.receivable-card.receivable-focus {
+  border-color: rgba(109, 40, 217, 0.45);
+  box-shadow: 0 0 0 3px rgba(109, 40, 217, 0.1);
+}
+
+@media (max-width: 480px) {
+  .card-receivable-form {
+    padding: 10px;
+  }
+}

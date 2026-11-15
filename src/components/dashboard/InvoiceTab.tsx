@@ -1,6 +1,7 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Cloud, LoaderCircle, Trash2 } from 'lucide-react'
 import { BudgetPanel } from '../BudgetPanel'
+import { CardReceivableForm } from '../CardReceivableForm'
 import { CategoryRules } from '../CategoryRules'
 import { FileUpload } from '../FileUpload'
 import { Installments } from '../Installments'
@@ -11,7 +12,9 @@ import { TransactionsTable } from '../TransactionsTable'
 import { UncategorizedPanel } from '../UncategorizedPanel'
 import type { Budget } from '../../services/budgetService'
 import type { CategoryRule } from '../../services/categoryRulesService'
+import type { CardReceivableInput } from '../../services/receivablesService'
 import type { InvoiceSummary } from '../../types/Invoice'
+import type { Receivable, ReceivablePayment } from '../../types/Receivable'
 import type { Transaction, TransactionCategory } from '../../types/Transaction'
 import { formatAuthorLabel } from '../../utils/authorship'
 import { formatMonthLabel } from '../../utils/invoiceReference'
@@ -45,6 +48,8 @@ interface InvoiceTabProps {
   search: string
   categoryFilter: string
   typeFilter: string
+  receivables?: Receivable[]
+  receivablePayments?: ReceivablePayment[]
   onInvoiceSelection: (invoiceId: string) => void
   onDeleteInvoice: () => void
   onFile: (file: File) => void
@@ -57,6 +62,12 @@ interface InvoiceTabProps {
   onRuleChange: (rule: CategoryRule, category: TransactionCategory) => void
   onDeleteRule: (rule: CategoryRule) => void
   onReapplyRules: () => void
+  onCreateReceivableFromTransaction?: (
+    invoiceId: string,
+    transaction: Transaction,
+    input: CardReceivableInput,
+  ) => Promise<boolean>
+  onViewReceivable?: (receivable: Receivable) => void
 }
 
 function formatReferenceMonth(referenceMonth: string): string {
@@ -84,6 +95,8 @@ export function InvoiceTab({
   search,
   categoryFilter,
   typeFilter,
+  receivables = [],
+  receivablePayments = [],
   onInvoiceSelection,
   onDeleteInvoice,
   onFile,
@@ -96,9 +109,26 @@ export function InvoiceTab({
   onRuleChange,
   onDeleteRule,
   onReapplyRules,
+  onCreateReceivableFromTransaction,
+  onViewReceivable,
 }: InvoiceTabProps) {
   const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId)
   const importedBy = isShared ? formatAuthorLabel(selectedInvoice) : null
+  const [charge, setCharge] = useState<{ invoiceId: string; transaction: Transaction } | null>(
+    null,
+  )
+
+  const activeCharge = charge && charge.invoiceId === selectedInvoiceId ? charge : null
+
+  const handleSaveCardReceivable = async (input: CardReceivableInput) => {
+    if (!activeCharge || !onCreateReceivableFromTransaction) return false
+
+    return onCreateReceivableFromTransaction(
+      activeCharge.invoiceId,
+      activeCharge.transaction,
+      input,
+    )
+  }
 
   return (
     <>
@@ -193,6 +223,13 @@ export function InvoiceTab({
           </Suspense>
           <TopMerchants transactions={transactions} />
           {invoiceMonth && <Installments transactions={transactions} invoiceMonth={invoiceMonth} />}
+          {activeCharge && (
+            <CardReceivableForm
+              transaction={activeCharge.transaction}
+              onCancel={() => setCharge(null)}
+              onSave={handleSaveCardReceivable}
+            />
+          )}
           <TransactionsTable
             transactions={filtered}
             categories={categories}
@@ -200,10 +237,19 @@ export function InvoiceTab({
             categoryFilter={categoryFilter}
             typeFilter={typeFilter}
             canEdit={canEdit}
+            invoiceId={selectedInvoiceId}
+            receivables={receivables}
+            payments={receivablePayments}
             onSearch={onSearch}
             onCategoryFilter={onCategoryFilter}
             onTypeFilter={onTypeFilter}
             onCategoryChange={onCategoryChange}
+            onCharge={
+              canEdit && onCreateReceivableFromTransaction
+                ? (transaction) => setCharge({ invoiceId: selectedInvoiceId, transaction })
+                : undefined
+            }
+            onViewReceivable={onViewReceivable}
           />
           <CategoryRules
             rules={rules}

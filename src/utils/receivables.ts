@@ -1,8 +1,16 @@
 import type { Receivable, ReceivablePayment } from '../types/Receivable'
+import type { Transaction, TransactionType } from '../types/Transaction'
 import { todayIso } from './monthPlan'
 import { fromCents, toCents } from './split'
 
 export type ReceivableStatus = 'pending' | 'partial' | 'paid' | 'overdue'
+
+export const RECEIVABLE_STATUS_LABELS: Record<ReceivableStatus, string> = {
+  pending: 'Pendente',
+  partial: 'Parcial',
+  paid: 'Pago',
+  overdue: 'Atrasada',
+}
 
 export interface ReceivableBalance {
   receivableId: string
@@ -116,4 +124,84 @@ export function totalReceivableBalance(
     received: fromCents(receivedCents),
     pending: fromCents(pendingCents),
   }
+}
+
+/** Tipos de lançamento do cartão que representam gasto real e podem ser cobrados. */
+const CHARGEABLE_TRANSACTION_TYPES: readonly TransactionType[] = [
+  'purchase',
+  'installment',
+  'pix_credit',
+]
+
+/**
+ * Elegibilidade de uma transação do cartão para gerar uma cobrança.
+ * Só gasto real positivo: purchase, installment e pix_credit com amount > 0.
+ */
+export function canCreateReceivableFromTransaction(transaction: Transaction): boolean {
+  return (
+    CHARGEABLE_TRANSACTION_TYPES.includes(transaction.type) &&
+    toCents(transaction.amount) > 0
+  )
+}
+
+/**
+ * Cobrança ligada a uma transação da fatura.
+ * Compara `invoiceId + transactionId` apenas em cobranças de cartão.
+ */
+export function findReceivableByTransaction(
+  receivables: Receivable[],
+  invoiceId: string,
+  transactionId: string,
+): Receivable | undefined {
+  const invoice = invoiceId.trim()
+  const transaction = transactionId.trim()
+  if (!invoice || !transaction) return undefined
+
+  return receivables.find(
+    (receivable) =>
+      receivable.source.type === 'card_transaction' &&
+      receivable.source.invoiceId === invoice &&
+      receivable.source.transactionId === transaction,
+  )
+}
+
+/** Atalho booleano para a unicidade por `invoiceId + transactionId`. */
+export function hasReceivableForTransaction(
+  receivables: Receivable[],
+  invoiceId: string,
+  transactionId: string,
+): boolean {
+  return Boolean(findReceivableByTransaction(receivables, invoiceId, transactionId))
+}
+
+/** Valida o vínculo obrigatório da origem `card_transaction`. */
+export function validateCardReceivableSource(
+  invoiceId: string,
+  transactionId: string,
+): string | null {
+  if (!invoiceId.trim()) return 'A fatura do lançamento não foi identificada.'
+  if (!transactionId.trim()) return 'O lançamento do cartão não foi identificado.'
+  return null
+}
+
+/**
+ * O valor cobrado pode ser parcial, mas nunca maior que a transação.
+ * Trabalha em centavos para não aceitar diferença de ponto flutuante.
+ */
+export function validateCardReceivableAmount(
+  transactionAmount: number,
+  amount: number,
+): string | null {
+  const limitCents = toCents(transactionAmount)
+  const amountCents = toCents(amount)
+
+  if (!Number.isFinite(amount) || amountCents <= 0) {
+    return 'O valor a cobrar precisa ser maior que zero.'
+  }
+
+  if (amountCents > limitCents) {
+    return 'O valor a cobrar não pode ser maior que o lançamento do cartão.'
+  }
+
+  return null
 }

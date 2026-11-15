@@ -68,7 +68,7 @@ src/
 │   ├── MonthOverview.tsx    Meu mês: resumo, previsão, vencimentos, receitas;
 │   │                        exibe o ExpensesPanel via children
 │   ├── ExpensesPanel.tsx, SplitEditor.tsx (divisão de gastos), SettlementsPanel.tsx,
-│   │                        ReceivablesPanel.tsx, BillsManager.tsx,
+│   │                        ReceivablesPanel.tsx, CardReceivableForm.tsx, BillsManager.tsx,
 │   │                        CashflowHistory.tsx, HistoryView.tsx
 │   ├── FileUpload.tsx, SummaryCards.tsx, BudgetPanel.tsx, UncategorizedPanel.tsx
 │   ├── CategoryChart.tsx, SpendingChart.tsx, TopMerchants.tsx, Installments.tsx
@@ -201,13 +201,14 @@ Gráficos (`CategoryChart`, `SpendingChart`, `HistoryView`, `CashflowHistory`) s
   (`createdBy.uid`, `createdAt`, `updatedAt`). Teto acumulado e presença em `split.shares` continuam
   no serviço.
 
-## Central A Receber (V6.1 — Lote 1)
+## Central A Receber (V6.1 — Lotes 1 e 2)
 
 - `types/Receivable.ts`: `Receivable` (`contact: { name, email?, phone? }`, `amount`, `dueDate?`,
   `notes?`, `source` e `...Authorship`) e `ReceivablePayment` (`receivableId`, `amount`,
   `paymentDate`, `notes?` e `...Authorship`). O contato é um **snapshot**, não um usuário e não
   existe coleção de contatos.
-- `source` neste lote é sempre `{ type: 'manual' }`; `card_transaction` fica reservado ao Lote 2.
+- `source` é `{ type: 'manual' }` nas cobranças criadas no painel e
+  `{ type: 'card_transaction', invoiceId, transactionId }` nas criadas a partir do cartão.
   A origem não muda depois da criação e a edição preserva o valor gravado.
 - **Nada é persistido como saldo:** `utils/receivables.ts` deriva `due`, `received`, `pending` e
   `status` em centavos. `pending = max(amount − recebido, 0)`; o status segue a prioridade
@@ -220,9 +221,19 @@ Gráficos (`CategoryChart`, `SpendingChart`, `HistoryView`, `CashflowHistory`) s
 - `components/ReceivablesPanel.tsx` aparece no Meu mês depois do `SettlementsPanel`, no Pessoal e
   nos Espaços. Mostra o resumo (devido/recebido/pendente), formulário manual, recebimentos
   parciais e histórico com Desfazer. Leitor vê tudo sem controles de escrita.
+- **Cobrança do cartão (Lote 2):** `TransactionsTable` mostra “A cobrar” apenas em `purchase`,
+  `installment` e `pix_credit` com valor positivo (Dono/Editor). O formulário
+  (`CardReceivableForm`) usa `transaction.title` como descrição e permite valor **parcial**, de
+  0 até o valor da transação. Uma transação aceita **uma única** cobrança, identificada por
+  `invoiceId + transactionId`; o serviço revalida a elegibilidade, o vínculo, o valor e a
+  duplicidade. A Transaction não é alterada e a cobrança pode ser excluída normalmente (bloqueada
+  se houver recebimentos).
+- **Parcelamento:** a cobrança vale somente para a parcela presente na fatura
+  (`transaction.amount`). Nenhuma cobrança futura de 3/6, 4/6 etc. é criada automaticamente.
 - **Sem double counting:** `Receivable` e `ReceivablePayment` não são receita, despesa nem
   transação. Não entram em `FinanceData`, `computeMonthSummary`, `computeForecast`, Histórico,
-  orçamento ou sobra, e não alteram o cartão. Recebimento não cria `Income`.
+  orçamento ou sobra, e não alteram o cartão. Recebimento não cria `Income`. “Ver cobrança”
+  navega para o Meu mês e destaca o cartão correspondente em `ReceivablesPanel`.
 
 ## Segurança em camadas (V6.0 — Lote 3)
 

@@ -84,6 +84,7 @@ export default function Dashboard() {
   const [cloudLoading, setCloudLoading] = useState(true)
   const [view, setView] = useState<View>('month')
   const [month, setMonth] = useState(currentMonth())
+  const [focusedReceivableId, setFocusedReceivableId] = useState<string | null>(null)
 
   // ----- Espaços -----
   const [spaces, setSpaces] = useState<Space[]>([])
@@ -196,6 +197,7 @@ export default function Dashboard() {
     handleDeleteReceivable,
     handleCreateReceivablePayment,
     handleDeleteReceivablePayment,
+    handleCreateReceivableFromTransaction,
     setBills,
     setPayments,
     setIncomes,
@@ -336,6 +338,7 @@ export default function Dashboard() {
       setSettlements([])
       setReceivables([])
       setReceivablePayments([])
+      setFocusedReceivableId(null)
       setInvoices([])
       setSelectedInvoiceId('')
       setFileName('')
@@ -448,7 +451,13 @@ export default function Dashboard() {
       />
 
       <main className="container-app">
-        <ViewTabs view={view} onChange={setView} />
+        <ViewTabs
+          view={view}
+          onChange={(next) => {
+            setView(next)
+            if (next !== 'month') setFocusedReceivableId(null)
+          }}
+        />
 
         {permissions.isShared && permissions.activeRole === 'viewer' && (
           <div className="reader-banner" role="status">
@@ -501,6 +510,7 @@ export default function Dashboard() {
             onDeleteReceivable={handleDeleteReceivable}
             onCreateReceivablePayment={handleCreateReceivablePayment}
             onDeleteReceivablePayment={handleDeleteReceivablePayment}
+            focusReceivableId={focusedReceivableId ?? undefined}
             onPay={handlePayBill}
             onUnpay={handleUnpayBill}
             onOpenInvoice={openInvoice}
@@ -554,9 +564,16 @@ export default function Dashboard() {
             search={search}
             categoryFilter={categoryFilter}
             typeFilter={typeFilter}
+            receivables={receivables}
+            receivablePayments={receivablePayments}
             onInvoiceSelection={(invoiceId) => void handleInvoiceSelection(invoiceId)}
             onDeleteInvoice={() => void handleDeleteInvoice()}
             onFile={(file) => void handleFile(file, ruleMap)}
+            onCreateReceivableFromTransaction={handleCreateReceivableFromTransaction}
+            onViewReceivable={(receivable) => {
+              setFocusedReceivableId(receivable.id)
+              setView('month')
+            }}
             onSaveBudget={(next) => void handleSaveBudget(next)}
             onAssignCategory={(title, category) => void applyCategoryToMerchant(title, category)}
             onSearch={setSearch}

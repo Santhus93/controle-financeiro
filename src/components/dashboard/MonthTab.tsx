@@ -40,6 +40,7 @@ interface MonthTabProps {
     payment: NewReceivablePayment,
   ) => Promise<boolean>
   onDeleteReceivablePayment?: (payment: ReceivablePayment) => Promise<boolean>
+  focusReceivableId?: string
   onPay: (bill: Bill, amount: number) => void
   onUnpay: (bill: Bill) => void
   onOpenInvoice: (invoiceId: string) => void
@@ -71,6 +72,7 @@ export function MonthTab({
   onDeleteReceivable,
   onCreateReceivablePayment,
   onDeleteReceivablePayment,
+  focusReceivableId,
   onPay,
   onUnpay,
   onOpenInvoice,
@@ -129,6 +131,7 @@ export function MonthTab({
             payments={receivablePayments}
             saving={saving}
             canEdit={canEdit}
+            focusReceivableId={focusReceivableId}
             onSave={onSaveReceivable}
             onDelete={onDeleteReceivable}
             onCreatePayment={onCreateReceivablePayment}

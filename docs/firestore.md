@@ -175,26 +175,35 @@ e um editor poderia alterar `roles` e se promover a dono.
   transacional, o que fica fora da V6.0.
 - Leitor: lê, mas não cria nem exclui.
 
-## Central A Receber (V6.1 — Lote 1)
+## Central A Receber (V6.1 — Lotes 1 e 2)
 
 - Coleções em **ambos os escopos**, com o mesmo `root` recebido pelos serviços:
   - `users/{uid}/receivables/{receivableId}` e `users/{uid}/receivablePayments/{paymentId}`;
   - `spaces/{spaceId}/receivables/{receivableId}` e `spaces/{spaceId}/receivablePayments/{paymentId}`.
 - `receivables` guarda `description`, `contact: { name, email?, phone? }`, `amount`, `dueDate?`,
-  `notes?`, `source: { type: 'manual' }` e, em Espaços, a autoria de criação. Devido, recebido,
-  pendente e status **nunca são gravados** — são derivados dos pagamentos.
+  `notes?`, `source` e, em Espaços, a autoria de criação. Devido, recebido, pendente e status
+  **nunca são gravados** — são derivados dos pagamentos.
+- `source` tem dois formatos:
+  - `{ type: 'manual' }` para cobranças criadas no painel;
+  - `{ type: 'card_transaction', invoiceId, transactionId }` para cobranças criadas a partir de um
+    lançamento do cartão. `invoiceId` e `transactionId` são obrigatórios; a Transaction **não**
+    recebe campos novos e continua intacta.
+- A unicidade “uma cobrança por transação” é **hoje garantida pelo serviço**, que compara
+  `source.type === 'card_transaction'` + `invoiceId + transactionId` antes de criar. Uma transação
+  origina no máximo uma cobrança, mesmo que o valor cobrado seja parcial.
 - `receivablePayments` guarda `receivableId`, `amount`, `paymentDate` e `notes?`. É **imutável**:
   não existe edição; corrigir é excluir e registrar de novo.
 - O recebimento é gravado apenas na coleção de pagamentos: não cria `Income` e não altera a
   cobrança, a fatura, o Meu mês nem a sobra.
 - Leitura tolerante a documentos antigos/inválidos, com Timestamp → Date e autoria opcional.
 
-### Limitações temporárias das regras (Lote 1)
+### Limitações temporárias das regras (Lotes 1 e 2)
 
-- `firestore.rules` **não foi alterado** neste lote.
+- `firestore.rules` **não foi alterado** nestes lotes.
 - No Pessoal, `users/{uid}/...` continua protegido pela regra existente (só o próprio uid).
 - Nos Espaços, as duas coleções usam a permissão genérica de subcoleções: Dono/Editor escrevem,
   Leitor apenas lê.
-- Estrutura específica, campos permitidos, autoria e imutabilidade dos pagamentos dependem hoje do
-  serviço; um Dono/Editor com acesso direto ao Firestore poderia gravar formato diferente.
+- Estrutura específica, campos permitidos, autoria, formato de `source.card_transaction` e
+  imutabilidade dos pagamentos dependem hoje do serviço; um Dono/Editor com acesso direto ao
+  Firestore poderia gravar formato diferente ou duplicar uma cobrança para a mesma transação.
   Regras próprias para `receivables`/`receivablePayments` entram no Lote 3.
